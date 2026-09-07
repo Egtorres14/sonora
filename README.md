@@ -54,7 +54,7 @@ Los adaptadores externos se conservan, pero no se han probado llamadas facturabl
 
 WAV/AIFF PCM se leen en su frecuencia original. AIFF utiliza una copia WAV float32 para reproducirse sin alterar las métricas ni el original. FLAC conserva frecuencia y profundidad desde STREAMINFO y depende del decodificador del navegador. Los formatos o tasas no admitidos producen un error explícito.
 
-Clipping, clics y envolventes de reversa son detectores con límites; sus marcas deben escucharse. Las pruebas sintéticas no equivalen a certificación de conformidad EBU/ITU. Los descriptores globales del modelo no demuestran que se aplicó pitch shift, time stretch o un filtro, ni localizan sus intervalos. Para verificar procesos ambiguos se necesita la fuente, el proyecto o evidencia del proceso de edición.
+Clipping, clics y envolventes de reversa son detectores con límites; sus marcas deben escucharse. Las propuestas para detectar la reversa de verdad (comparación contra la fuente, declaración del estudiante, descriptores locales y firma de la reverberación) están en [docs/REVERSA-PROPUESTAS.md](docs/REVERSA-PROPUESTAS.md). Las pruebas sintéticas no equivalen a certificación de conformidad EBU/ITU. Los descriptores globales del modelo no demuestran que se aplicó pitch shift, time stretch o un filtro, ni localizan sus intervalos. Para verificar procesos ambiguos se necesita la fuente, el proyecto o evidencia del proceso de edición.
 
 ## Publicación y contribuciones
 
