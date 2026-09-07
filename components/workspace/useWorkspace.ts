@@ -7,9 +7,10 @@ import { createReview, updateReview, type ReviewRecord } from '../../services/re
 import type { LocalModel } from '../../services/learning/types';
 import { loadSession, saveSession, clearSession, studentKey, type Session } from '../../services/session';
 import { loadRubric, saveRubric, resetRubric } from '../../services/rubric-store';
+import { loadEngineSettings, saveEngineSettings, type EngineSettings } from '../../services/engines';
 import type { RubricConfig } from '../../services/scoring/rubric';
 
-export type WorkspaceView = 'lab' | 'library' | 'learning' | 'rubric';
+export type WorkspaceView = 'lab' | 'library' | 'learning' | 'rubric' | 'engines';
 const fileHash = async (file: Blob) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()))).map(b => b.toString(16).padStart(2, '0')).join('');
 const playbackBlob = (file: Blob, analysis: AnalyzedAudio) => analysis.features.file.container === 'aiff' ? new Blob([encodeWavFloat32(analysis.channels, analysis.sampleRate)], { type: 'audio/wav' }) : file;
 const useAudioUrl = (blob: Blob | null) => {
@@ -18,11 +19,12 @@ const useAudioUrl = (blob: Blob | null) => {
   return url;
 };
 /** Campos que un estudiante puede modificar en su propia entrega. */
-const STUDENT_FIELDS: (keyof ReviewRecord)[] = ['synopsis'];
+const STUDENT_FIELDS: (keyof ReviewRecord)[] = ['synopsis', 'ai'];
 
 export default function useWorkspace() {
   const [session, setSession] = useState<Session | null>(() => loadSession());
   const [rubric, setRubricState] = useState<RubricConfig>(() => loadRubric());
+  const [engines, setEnginesState] = useState<EngineSettings>(() => loadEngineSettings());
   const [allRecords, setAllRecords] = useState<ReviewRecord[]>([]), recordsRef = useRef<ReviewRecord[]>([]);
   const [model, setModel] = useState<LocalModel | null>(null);
   const [view, setView] = useState<WorkspaceView>('lab');
@@ -48,13 +50,14 @@ export default function useWorkspace() {
   const enter = (next: Session) => { saveSession(next); setSession(next); resetSelection(); setView('lab'); setError(''); setNotice(''); };
   const leave = () => { abort.current?.abort(); clearSession(); setSession(null); resetSelection(); setView('lab'); setError(''); setNotice(''); };
   const setRubric = (next: RubricConfig) => { try { setRubricState(saveRubric(next)); setNotice('Rúbrica guardada en este navegador. Las notas se recalculan con ella.'); } catch (e) { setError(e instanceof Error ? e.message : 'Rúbrica inválida.'); } };
+  const setEngines = (next: EngineSettings) => { saveEngineSettings(next); setEnginesState(next); setNotice(next.engine === 'local' ? 'Motores guardados: segunda opinión con el modelo local.' : `Motores guardados: ${next.engine} · ${next.models[next.engine]}${next.studentAccess ? ' · lectura orientativa activa para estudiantes' : ''}.`); setView('lab'); };
   const restoreRubric = () => { setRubricState(resetRubric()); setNotice('Rúbrica restablecida a la original.'); };
 
   const change = (id: string, patch: Partial<ReviewRecord>) => {
     const current = recordsRef.current.find(r => r.id === id); if (!current) return;
     if (!isTeacher) {
       if (!owns(current)) return;
-      patch = Object.fromEntries(Object.entries(patch).filter(([k]) => STUDENT_FIELDS.includes(k as keyof ReviewRecord))) as Partial<ReviewRecord>;
+      patch = Object.fromEntries(Object.entries(patch).filter(([k]) => STUDENT_FIELDS.includes(k as keyof ReviewRecord) && (k !== 'ai' || (engines.studentAccess && !current.ai)))) as Partial<ReviewRecord>;
       if (!Object.keys(patch).length) return;
     }
     try {
@@ -151,5 +154,5 @@ export default function useWorkspace() {
     catch { setError('No se pudo cargar la referencia.'); }
   };
   const saveModel = async (next: LocalModel) => { if (!isTeacher) return; await library.saveModel(next); setModel(next); setNotice('Modelo y resultados de validación guardados en este navegador.'); };
-  return { session, enter, leave, isTeacher, rubric, setRubric, restoreRubric, records, allRecords, model, view, setView, selected: records.find(r => r.id === selectedId), analyzed, audioUrl, referenceUrl, referenceId, reference, busy, stage, error, notice, saving, setError, setNotice, change, select, files, demo, remove, importFile, saveModel, cancel: () => abort.current?.abort() };
+  return { session, enter, leave, isTeacher, rubric, setRubric, restoreRubric, engines, setEngines, records, allRecords, model, view, setView, selected: records.find(r => r.id === selectedId), analyzed, audioUrl, referenceUrl, referenceId, reference, busy, stage, error, notice, saving, setError, setNotice, change, select, files, demo, remove, importFile, saveModel, cancel: () => abort.current?.abort() };
 }

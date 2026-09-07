@@ -39,7 +39,9 @@ Es una separación de espacios dentro del mismo navegador, pensada para un aula 
 - **Biblioteca:** audio original, métricas y anotaciones en IndexedDB; deduplicación SHA-256, búsqueda, filtros, exportación JSON/CSV, importación validada y eliminación individual. El CSV incluye notas finales y su procedencia manual/calculada/pendiente.
 - **Modelo local:** bosques aleatorios por herramienta, entrenamiento en worker y validación con tres particiones separadas por grabación de origen. Se guardan las matrices de confusión y el modelo. Las sugerencias se abstienen con resultados insuficientes y no cambian etiquetas ni notas.
 - **Demos:** cuatro señales sintéticas para explorar limpieza, clics, saturación y envolventes invertidas. Se identifican y excluyen del entrenamiento real.
-- **Diseño:** consola Sonora adaptable a móvil, fuentes y estilos locales, navegación por teclado, movimiento reducido e impresión del informe.
+- **Diseño:** consola Sonora adaptable a móvil (objetivos táctiles de 44 px, métricas en dos columnas), movimiento discreto (marca que respira, medidores que suben, marcas que laten; se apaga con «reducir movimiento»), fuentes y estilos locales, navegación por teclado e impresión del informe.
+- **Motores de IA (profesor):** elige entre el modelo local gratuito o Gemini, Claude u OpenAI con tu clave; comprueba la clave sin gastar tokens; ve ventajas, límites y coste por evaluación; decide si los estudiantes reciben una lectura orientativa (una por entrega, con tu clave) y cuántas ejecuciones usa tu segunda opinión.
+- **Evidencias con tiempos:** cada punto de la evaluación aparece con su momento, criterio, detalle y fuente (medido en el archivo, anotado por el profesor o sugerido por un modelo), pintado sobre la forma de onda; al pulsar una fila se escucha desde ahí. Las anotaciones del profesor con tiempos («0:12–0:18») y las sugerencias del modelo con marcas se convierten en regiones.
 
 ## Empezar sin muestras etiquetadas
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, type MutableRefObject } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import type { AudioFeatures } from '../types';
@@ -8,12 +8,16 @@ const PlayIcon = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill="cu
 const PauseIcon = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19H10V5H6V19ZM14 5V19H18V5H14Z" /></svg>);
 const VolumeHighIcon = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9V15H7L12 20V4L7 9H3ZM18.5 12C18.5 10.23 17.54 8.71 16 7.97V16.02C17.54 15.29 18.5 13.77 18.5 12ZM14 3.23V5.29C16.89 6.15 19 8.83 19 12C19 15.17 16.89 17.84 14 18.7V20.77C18.01 19.86 21 16.28 21 12C21 7.72 18.01 4.14 14 3.23Z"/></svg>);
 
+export interface Marker { start: number; end: number; color: string; label: string }
+
 interface AudioPlayerProps {
   src: string;
   features: AudioFeatures | null;
+  /** Marcas adicionales (anotaciones del profesor, sugerencias del modelo). */
+  extraMarkers?: Marker[];
+  /** Recibe una función para saltar a un instante y reproducir. */
+  seekRef?: MutableRefObject<((time: number) => void) | null>;
 }
-
-interface Marker { start: number; end: number; color: string; label: string }
 
 const buildMarkers = (f: AudioFeatures | null): Marker[] => {
   if (!f) return [];
@@ -28,9 +32,11 @@ const buildMarkers = (f: AudioFeatures | null): Marker[] => {
   return m;
 };
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features }) => {
+const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features, extraMarkers = [], seekRef }) => {
+  const extraKey = extraMarkers.map((m) => `${m.start.toFixed(2)}-${m.end.toFixed(2)}-${m.label}`).join('|');
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
+  const regionsRef = useRef<ReturnType<typeof RegionsPlugin.create> | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -59,17 +65,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features }) => {
       plugins: [regions],
     });
     wavesurferRef.current = ws;
+    regionsRef.current = regions;
 
     const onReady = () => {
       setReady(true);
       setDuration(ws.getDuration());
       ws.setVolume(volume);
-      for (const mk of buildMarkers(features)) {
-        const region = regions.addRegion({ start: mk.start, end: mk.end, color: mk.color, drag: false, resize: false });
-        region.on('over', () => setHover(mk.label));
-        region.on('leave', () => setHover(''));
-        region.on('click', (e) => { e.stopPropagation(); ws.setTime(Math.max(0, mk.start - 0.5)); void ws.play().catch(() => setError('No se pudo iniciar la reproducción.')); });
-      }
+      if (seekRef) seekRef.current = (time: number) => { ws.setTime(Math.max(0, Math.min(ws.getDuration(), time))); void ws.play().catch(() => setError('No se pudo iniciar la reproducción.')); };
     };
     ws.on('ready', onReady);
     ws.on('play', () => setIsPlaying(true));
@@ -77,16 +79,30 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features }) => {
     ws.on('timeupdate', (t: number) => setCurrentTime(t));
     ws.on('finish', () => setIsPlaying(false));
     ws.on('error', () => { setReady(false); setError('El navegador no pudo reproducir este formato. Las métricas del archivo siguen disponibles.'); });
-    return () => { wavesurferRef.current = null; ws.destroy(); };
+    return () => { wavesurferRef.current = null; regionsRef.current = null; if (seekRef) seekRef.current = null; ws.destroy(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src, features]);
+  }, [src]);
+
+  // Las marcas se actualizan sin recargar el audio (cada tecla en una evidencia cambia las regiones, no el reproductor).
+  useEffect(() => {
+    const ws = wavesurferRef.current, regions = regionsRef.current;
+    if (!ready || !ws || !regions) return;
+    regions.clearRegions();
+    for (const mk of [...buildMarkers(features), ...extraMarkers]) {
+      const region = regions.addRegion({ start: mk.start, end: mk.end, color: mk.color, drag: false, resize: false, content: mk.end - mk.start > 0.5 ? mk.label.split(' · ')[0] : undefined });
+      region.on('over', () => setHover(mk.label));
+      region.on('leave', () => setHover(''));
+      region.on('click', (e) => { e.stopPropagation(); ws.setTime(Math.max(0, mk.start - 0.5)); void ws.play().catch(() => setError('No se pudo iniciar la reproducción.')); });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, features, extraKey]);
 
   const togglePlayPause = useCallback(() => { void wavesurferRef.current?.playPause().catch(() => setError('No se pudo iniciar la reproducción.')); }, []);
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value); setVolume(v); wavesurferRef.current?.setVolume(v);
   }, []);
 
-  const markerCount = features ? features.clicks.events.length + features.clipping.timestamps.length : 0;
+  const markerCount = (features ? features.clicks.events.length + features.clipping.timestamps.length : 0) + extraMarkers.length;
 
   return (
     <div className="bg-brand-bg/50 p-4 rounded-lg flex flex-col space-y-3">
@@ -99,6 +115,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features }) => {
           <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 align-middle" style={{ background: 'rgba(250,204,21,0.7)' }} />clipping</span>
           <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 align-middle" style={{ background: 'rgba(148,163,184,0.35)' }} />silencio</span>
           <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 align-middle" style={{ background: 'rgba(61,232,166,0.25)' }} />¿reversa?</span>
+          <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 align-middle" style={{ background: 'rgba(239,239,230,0.35)' }} />profesor</span>
+          <span><span className="inline-block w-2.5 h-2.5 rounded-sm mr-1 align-middle" style={{ background: 'rgba(199,235,153,0.55)' }} />modelo</span>
         </span>
         <span className="italic">{hover || (markerCount ? 'Pasa el ratón por un marcador; haz clic para escucharlo.' : 'Sin problemas marcados.')}</span>
       </div>

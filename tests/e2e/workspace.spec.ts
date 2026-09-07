@@ -183,3 +183,23 @@ test('menú de entrada: el estudiante entrega con su nombre y el profesor lo ve 
   await page.getByRole('button', { name: 'Entrar como profesor' }).click();
   await expect(page.getByRole('alert')).toContainText('PIN incorrecto');
 });
+
+test('evidencias con tiempos y motores de IA', async ({ page }) => {
+  await page.getByRole('button', { name: /Edición con clics/ }).click();
+  await expect(page.getByRole('heading', { name: 'campana_cortes.wav', exact: true })).toBeVisible();
+  const panel = page.locator('.evidence-panel');
+  await expect(panel.getByRole('heading', { name: 'Cada punto tiene su momento.' })).toBeVisible();
+  await expect(panel.locator('.evidence-row.medido').first()).toContainText(/Clic|Corte/);
+  await page.getByRole('group', { name: 'Revisión de Reversa' }).getByRole('button', { name: 'Presente' }).click();
+  await page.getByLabel('Evidencia de Reversa').fill('0:12–0:18 cola invertida');
+  await expect(panel.locator('.evidence-row.profesor').first()).toContainText('0:12.000–0:18.000');
+  await expect(page.getByRole('button', { name: 'Reproducir', exact: true })).toBeEnabled();
+  await panel.locator('button.evidence-row.profesor').first().click();
+  await expect(page.getByRole('button', { name: 'Pausar', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Motores de IA/ }).click();
+  await expect(page.getByRole('radio', { name: /Modelo local/ })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('radio', { name: /Google Gemini/ }).click();
+  await expect(page.getByRole('checkbox', { name: /Permitir a los estudiantes/ })).toBeEnabled();
+  await page.getByRole('button', { name: 'Guardar motores' }).click();
+  await expect(page.locator('.notice-banner')).toContainText('gemini');
+});
