@@ -11,7 +11,9 @@ const audio = () => {
   const channel = Float32Array.from({ length: sr * 60 }, (_, i) => Math.sin(i * 2 * Math.PI * 440 / sr) * 0.1);
   return { name: 'campana_validacion.wav', mimeType: 'audio/wav', buffer: Buffer.from(encodeWav16([channel], sr)) };
 };
-test.beforeEach(async ({ page }) => { await page.goto('/'); });
+// Los recorridos existentes entran como profesor; el menú de roles se prueba en su propio test.
+const asTeacher = () => { localStorage.setItem('sonora.session.v1', JSON.stringify({ role: 'teacher', enteredAt: new Date().toISOString() })); };
+test.beforeEach(async ({ page }) => { await page.addInitScript(asTeacher); await page.goto('/'); });
 
 test('landing local, móvil sin desbordamiento y modelo sin datos', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Escucha.*Mide/ })).toBeVisible();
@@ -54,7 +56,7 @@ test('archivo corrupto seguido de válido, corrección y persistencia sin IA', a
   await page.screenshot({ path: 'output/playwright/sonora-analysis.png', fullPage: true });
   await page.reload();
   await page.getByRole('button', { name: /Biblioteca/ }).first().click();
-  await page.getByRole('button', { name: /campana_validacion.wav/ }).first().click();
+  await page.getByRole('button', { name: /^campana_validacion/ }).first().click();
   await expect(page.getByTestId('final-score')).toHaveText('23,5/ 30');
   await expect(page.getByLabel('Feedback para el estudiante')).toHaveValue('Comentario que debe conservar la nota manual.');
   await page.getByRole('button', { name: 'Espectrograma', exact: true }).click();
@@ -127,4 +129,58 @@ test('AIFF conserva su formato medido y puede reproducirse en el navegador', asy
   await expect(page.locator('.file-heading')).toContainText('16 bit');
   await page.getByRole('button', { name: 'Reproducir', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Pausar', exact: true })).toBeVisible();
+});
+
+test('menú de entrada: el estudiante entrega con su nombre y el profesor lo ve con la nota', async ({ page }) => {
+  // El init script del beforeEach reentraría como profesor en cada navegación: salimos desde la app.
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await expect(page.getByRole('heading', { name: '¿Quién entra?' })).toBeVisible();
+  // Estudiante: nombre obligatorio
+  await page.getByLabel('Nombre y apellidos').fill('María Pérez');
+  await page.getByRole('button', { name: 'Entrar como estudiante' }).click();
+  await expect(page.getByRole('heading', { name: /Sube tu/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Biblioteca/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Modelo local/ })).toHaveCount(0);
+  await page.getByLabel('Subir archivos de audio').setInputFiles(audio());
+  await expect(page.getByRole('heading', { name: 'campana_validacion.wav', exact: true })).toBeVisible();
+  await expect(page.locator('.file-heading')).toContainText('Tu entrega');
+  await expect(page.getByText('CRITERIO DEL PROFESOR')).toHaveCount(0);
+  await page.getByLabel('Sinopsis de la pieza').fill('Paisaje sonoro construido a partir de una campana.');
+  await page.getByRole('button', { name: /Mis entregas/ }).first().click();
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+  await expect(page.locator('tbody tr')).toContainText('Pendiente de calificación');
+  // Profesor: crea el PIN, ve el nombre del estudiante y califica
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await page.getByLabel('Nuevo PIN (4–32 caracteres)').fill('clase-2026');
+  await page.getByLabel('Repite el PIN').fill('clase-2026');
+  await page.getByRole('button', { name: 'Crear PIN y entrar' }).click();
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await expect(page.locator('tbody tr')).toContainText('María Pérez');
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await expect(page.locator('.file-heading')).toContainText('Entregado por María Pérez');
+  for (const tool of ['Pitch shift', 'Time stretch', 'Reversa', 'Filtros', 'Loops']) await page.getByRole('group', { name: `Revisión de ${tool}` }).getByRole('button', { name: 'Presente' }).click();
+  await page.getByLabel('Sobreprocesamiento').selectOption('none');
+  await page.getByLabel('Efectos extra').selectOption('absent');
+  await expect(page.getByTestId('final-score')).toContainText('30');
+  await page.getByLabel('Feedback para el estudiante').fill('Buen trabajo con la reversa.');
+  // Rúbrica editable: sin exigir 48 kHz y con 3 herramientas obligatorias el total cambia
+  await page.getByRole('button', { name: /Rúbrica/ }).click();
+  await page.getByLabel('Puntos extra por efectos adicionales').fill('1');
+  await page.getByRole('button', { name: 'Guardar rúbrica' }).click();
+  await expect(page.locator('.notice-banner')).toContainText('Rúbrica guardada');
+  // El estudiante vuelve a entrar y ve su nota y el comentario
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await page.getByLabel('Nombre y apellidos').fill('maria perez');
+  await page.getByRole('button', { name: 'Entrar como estudiante' }).click();
+  await page.getByRole('button', { name: /Mis entregas/ }).first().click();
+  await expect(page.locator('tbody tr')).toContainText('Calificado');
+  await expect(page.locator('tbody tr')).toContainText('30 / 30');
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await expect(page.getByTestId('student-score')).toContainText('30');
+  await expect(page.getByText('Buen trabajo con la reversa.')).toBeVisible();
+  // El PIN incorrecto no da acceso al profesor
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await page.getByLabel('PIN', { exact: true }).fill('otro');
+  await page.getByRole('button', { name: 'Entrar como profesor' }).click();
+  await expect(page.getByRole('alert')).toContainText('PIN incorrecto');
 });

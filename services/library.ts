@@ -1,5 +1,6 @@
 import { openDB, type DBSchema } from 'idb';
 import { calculateReview, EFFECTS, type ReviewRecord } from './review';
+import type { RubricConfig } from './scoring/rubric';
 import type { LocalModel } from './learning/types';
 import { DatasetSchema } from './library-schema';
 
@@ -67,15 +68,15 @@ export const downloadFile = (contents: BlobPart, name: string, type = 'applicati
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-export const exportCsv = (records: ReviewRecord[]) => {
+export const exportCsv = (records: ReviewRecord[], rubric?: RubricConfig) => {
   const quote = (value: unknown) => {
     const raw = String(value ?? '');
     const safe = /^[=+@\-\t\r]/.test(raw) ? `'${raw}` : raw;
     return `"${safe.replaceAll('"', '""')}"`;
   };
   const rows = records.map(r => {
-    const score = calculateReview(r);
-    return [r.name, r.sourceGroup, r.origin, r.features.format.duration, ...EFFECTS.map(e => r.labels[e.id]), score.final, score.manual ? 'manual' : score.final === null ? 'pendiente' : 'calculada', score.formal.total, score.technical.total, r.notes];
+    const score = calculateReview(r, rubric);
+    return [r.name, r.student?.name ?? '', r.student?.submittedAt ?? '', r.sourceGroup, r.origin, r.features.format.duration, ...EFFECTS.map(e => r.labels[e.id]), score.final, score.manual ? 'manual' : score.final === null ? 'pendiente' : 'calculada', score.formal.total, score.technical.total, r.notes];
   });
-  return '\uFEFF' + [['Archivo', 'Grupo de origen', 'Procedencia', 'Segundos', 'Pitch shift', 'Time stretch', 'Reversa', 'Filtros', 'Loops', 'Nota final', 'Tipo de nota', 'Formal', 'Técnica', 'Notas'], ...rows].map(row => row.map(quote).join(';')).join('\r\n');
+  return '\uFEFF' + [['Archivo', 'Estudiante', 'Entregado', 'Grupo de origen', 'Procedencia', 'Segundos', 'Pitch shift', 'Time stretch', 'Reversa', 'Filtros', 'Loops', 'Nota final', 'Tipo de nota', 'Formal', 'Técnica', 'Notas'], ...rows].map(row => row.map(quote).join(';')).join('\r\n');
 };

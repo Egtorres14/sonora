@@ -2,16 +2,16 @@ import { useRef, useState } from 'react';
 import { ArrowUpRight, AudioLines, Upload } from 'lucide-react';
 import { DEMOS, type DemoId } from '../../services/audio/demos';
 
-interface Props { busy: boolean; onFiles: (files: File[]) => void; onDemo: (id: DemoId) => void; compact?: boolean }
-export default function UploadArea({ busy, onFiles, onDemo, compact = false }: Props) {
+interface Props { busy: boolean; onFiles: (files: File[]) => void; onDemo: (id: DemoId) => void; compact?: boolean; student?: string }
+export default function UploadArea({ busy, onFiles, onDemo, compact = false, student }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   return <div className={compact ? 'upload-compact' : 'entry-layout'}>
     <div className="entry-main">
-      {!compact && <div className="entry-title"><span className="eyebrow"><span className="status-dot" /> TU LABORATORIO, EN LOCAL</span><h2>Escucha.<br />Mide. <em>Comprueba.</em></h2><p>Una buena evaluación empieza por la evidencia.<br className="desktop-only" /> Analiza tus audios y construye tu propio criterio.</p></div>}
+      {!compact && (student ? <div className="entry-title"><span className="eyebrow"><span className="status-dot" /> ENTREGA DE {student.toUpperCase()}</span><h2>Sube tu<br /><em>proyecto.</em></h2><p>Tu archivo se analiza en este navegador y queda registrado a tu nombre.<br className="desktop-only" /> Escribe después la sinopsis de tu pieza para el profesor.</p></div> : <div className="entry-title"><span className="eyebrow"><span className="status-dot" /> TU LABORATORIO, EN LOCAL</span><h2>Escucha.<br />Mide. <em>Comprueba.</em></h2><p>Una buena evaluación empieza por la evidencia.<br className="desktop-only" /> Analiza tus audios y construye tu propio criterio.</p></div>)}
       <div className={`drop-zone ${dragging ? 'is-dragging' : ''}`} onDragOver={e => { e.preventDefault(); if (!busy) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); if (!busy) onFiles(Array.from(e.dataTransfer.files)); }}>
         <div className="upload-icon"><Upload size={23} strokeWidth={1.5} /></div>
-        <h3>{compact ? 'Añade más muestras' : 'Dale play a tu próximo análisis'}</h3>
+        <h3>{compact ? (student ? 'Entrega otro archivo' : 'Añade más muestras') : student ? 'Selecciona tu archivo de audio' : 'Dale play a tu próximo análisis'}</h3>
         <p>Arrastra uno o varios archivos de audio aquí</p>
         <button className="button primary" disabled={busy} onClick={() => input.current?.click()}>Seleccionar archivos <ArrowUpRight size={17} /></button>
         <span className="upload-meta">WAV · AIFF · FLAC <span>Hasta 200 MB por archivo</span></span>
@@ -28,6 +28,6 @@ export default function UploadArea({ busy, onFiles, onDemo, compact = false }: P
       <div className="entry-promise"><AudioLines size={22} /><div><h3>La evidencia va primero.</h3><p>Mediciones en tu equipo. Decisiones del profesor. Modelos que aportan una segunda opinión.</p></div></div>
       <div className="small-stat-row"><span><b>01</b> Analiza</span><span><b>02</b> Etiqueta</span><span><b>03</b> Aprende</span></div>
     </aside>}
-    {!compact && <section className="demo-section"><div className="section-heading"><div><span className="eyebrow">EMPIEZA A EXPLORAR</span><h3>Un oído para cada detalle.</h3></div><span className="muted text-small">Ejemplos sintéticos · excluidos del entrenamiento</span></div><div className="demo-grid">{DEMOS.map((demo, i) => <button key={demo.id} className="demo-card" disabled={busy} onClick={() => onDemo(demo.id)}><div className="demo-card-top"><span className="demo-number">0{i + 1}</span><ArrowUpRight size={18} /></div><div className={`mini-wave wave-${i}`} aria-hidden="true">{Array.from({ length: 36 }, (_, j) => <i key={j} style={{ height: `${12 + Math.abs(Math.sin(j * 1.7 + i) * Math.cos(j * 0.2)) * 36}px` }} />)}</div><h4>{demo.title}</h4><p>{demo.description}</p><div className="demo-card-bottom"><span>{demo.issue}</span><span>{demo.duration}</span></div></button>)}</div></section>}
+    {!compact && !student && <section className="demo-section"><div className="section-heading"><div><span className="eyebrow">EMPIEZA A EXPLORAR</span><h3>Un oído para cada detalle.</h3></div><span className="muted text-small">Ejemplos sintéticos · excluidos del entrenamiento</span></div><div className="demo-grid">{DEMOS.map((demo, i) => <button key={demo.id} className="demo-card" disabled={busy} onClick={() => onDemo(demo.id)}><div className="demo-card-top"><span className="demo-number">0{i + 1}</span><ArrowUpRight size={18} /></div><div className={`mini-wave wave-${i}`} aria-hidden="true">{Array.from({ length: 36 }, (_, j) => <i key={j} style={{ height: `${12 + Math.abs(Math.sin(j * 1.7 + i) * Math.cos(j * 0.2)) * 36}px` }} />)}</div><h4>{demo.title}</h4><p>{demo.description}</p><div className="demo-card-bottom"><span>{demo.issue}</span><span>{demo.duration}</span></div></button>)}</div></section>}
   </div>;
 }
