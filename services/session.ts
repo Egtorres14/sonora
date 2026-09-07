@@ -10,6 +10,8 @@ export interface Session { role: Role; studentName?: string; enteredAt: string }
 
 const SESSION_KEY = 'sonora.session.v1';
 const PIN_KEY = 'sonora.teacher-pin.v1';
+/** PIN del profesor acordado para este despliegue (guardado como SHA-256, no en claro). Un PIN propio guardado en el navegador lo sustituye. */
+const DEFAULT_PIN_HASH = '74688ed9a432b7dd10bbc5cba8b55a97b1a597ec262b79350dc040a0b98bec28';
 const memory = new Map<string, string>();
 
 const store = {
@@ -34,7 +36,9 @@ export const normalizeStudentName = (raw: string): string => {
 /** Clave estable para comparar nombres (sin mayúsculas ni acentos). */
 export const studentKey = (name: string): string => name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
-export const hasTeacherPin = (): boolean => !!store.get(PIN_KEY);
+/** Siempre hay un PIN: el propio del navegador o el acordado por defecto. */
+export const hasTeacherPin = (): boolean => true;
+export const hasCustomTeacherPin = (): boolean => !!store.get(PIN_KEY);
 
 export const setTeacherPin = async (pin: string): Promise<void> => {
   if (pin.length < 4 || pin.length > 32) throw new Error('El PIN debe tener entre 4 y 32 caracteres.');
@@ -42,8 +46,8 @@ export const setTeacherPin = async (pin: string): Promise<void> => {
 };
 
 export const verifyTeacherPin = async (pin: string): Promise<boolean> => {
-  const stored = store.get(PIN_KEY);
-  return !!stored && stored === (await sha256(`sonora:${pin}`));
+  const stored = store.get(PIN_KEY) ?? DEFAULT_PIN_HASH;
+  return stored === (await sha256(`sonora:${pin}`));
 };
 
 export const clearTeacherPin = () => store.remove(PIN_KEY);

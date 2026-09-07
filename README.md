@@ -28,7 +28,7 @@ En PowerShell puedes usar `npm.cmd` y `npx.cmd` si la política de scripts bloqu
 Al abrir la app aparece un menú de entrada:
 
 - **Estudiante**: escribe su nombre y solo puede subir archivos y ver sus propias entregas (métricas, sinopsis y, cuando el profesor termina, la nota y el feedback). Su nombre queda unido al archivo.
-- **Profesor**: entra con un PIN (se crea la primera vez en cada navegador) y ve la biblioteca completa con el nombre de cada estudiante, califica, elimina, importa/exporta, entrena el modelo y **edita la rúbrica** (puntos, frecuencia exigida, penalizaciones, herramientas obligatorias, duración, extra).
+- **Profesor**: entra con el PIN acordado (`Felipebolano2026`; en el código solo va su hash, pero el repositorio es público, así que cámbialo si necesitas privacidad real) y ve la biblioteca completa con el nombre de cada estudiante, califica, elimina, importa/exporta, entrena el modelo y **edita la rúbrica** (puntos, frecuencia exigida, penalizaciones, herramientas obligatorias, duración, extra).
 
 Es una separación de espacios dentro del mismo navegador, pensada para un aula o un equipo compartido: no hay cuentas ni servidor. Si cada estudiante trabaja en su equipo, puede descargar sus entregas (JSON con métricas y sinopsis) desde «Mis entregas» y el profesor las importa en Biblioteca; el audio se comparte aparte y se reconoce por su huella.
 

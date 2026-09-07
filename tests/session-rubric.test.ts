@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { normalizeStudentName, studentKey, setTeacherPin, verifyTeacherPin, hasTeacherPin, clearTeacherPin, saveSession, loadSession, clearSession, studentSession } from '../services/session';
+import { normalizeStudentName, studentKey, setTeacherPin, verifyTeacherPin, hasCustomTeacherPin, clearTeacherPin, saveSession, loadSession, clearSession, studentSession } from '../services/session';
 import { loadRubric, saveRubric, resetRubric, fromStored, toStored, rubricTotal, isDefaultRubric } from '../services/rubric-store';
 import { DEFAULT_RUBRIC } from '../services/scoring/rubric';
 import { calculateReview, createReview } from '../services/review';
@@ -14,13 +14,15 @@ describe('Sesión de acceso', () => {
     expect(() => normalizeStudentName('1234')).toThrow();
     expect(studentKey('María Pérez')).toBe(studentKey('maria  perez'));
   });
-  it('el PIN del profesor se guarda como hash y se verifica', async () => {
-    expect(hasTeacherPin()).toBe(false);
+  it('el PIN acordado funciona por defecto y un PIN propio lo sustituye', async () => {
+    expect(hasCustomTeacherPin()).toBe(false);
+    expect(await verifyTeacherPin('Felipebolano2026')).toBe(true);
+    expect(await verifyTeacherPin('otro')).toBe(false);
     await expect(setTeacherPin('123')).rejects.toThrow();
     await setTeacherPin('clase-2026');
-    expect(hasTeacherPin()).toBe(true);
+    expect(hasCustomTeacherPin()).toBe(true);
     expect(await verifyTeacherPin('clase-2026')).toBe(true);
-    expect(await verifyTeacherPin('otro')).toBe(false);
+    expect(await verifyTeacherPin('Felipebolano2026')).toBe(false);
   });
   it('la sesión de estudiante persiste con su nombre normalizado', () => {
     saveSession(studentSession(' Ana  López '));

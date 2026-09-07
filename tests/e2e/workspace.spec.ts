@@ -151,9 +151,8 @@ test('menú de entrada: el estudiante entrega con su nombre y el profesor lo ve 
   await expect(page.locator('tbody tr')).toContainText('Pendiente de calificación');
   // Profesor: crea el PIN, ve el nombre del estudiante y califica
   await page.getByRole('button', { name: /Salir/ }).click();
-  await page.getByLabel('Nuevo PIN (4–32 caracteres)').fill('clase-2026');
-  await page.getByLabel('Repite el PIN').fill('clase-2026');
-  await page.getByRole('button', { name: 'Crear PIN y entrar' }).click();
+  await page.getByLabel('PIN', { exact: true }).fill('Felipebolano2026');
+  await page.getByRole('button', { name: 'Entrar como profesor' }).click();
   await page.getByRole('button', { name: /Biblioteca/ }).first().click();
   await expect(page.locator('tbody tr')).toContainText('María Pérez');
   await page.getByRole('button', { name: /^campana_validacion/ }).click();

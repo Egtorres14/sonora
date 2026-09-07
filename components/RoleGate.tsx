@@ -1,17 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowRight, AudioLines, GraduationCap, KeyRound, LockKeyhole, UserRound } from 'lucide-react';
-import { hasTeacherPin, setTeacherPin, verifyTeacherPin, studentSession, teacherSession, type Session } from '../services/session';
+import { verifyTeacherPin, studentSession, teacherSession, type Session } from '../services/session';
 
 interface Props { onEnter: (session: Session) => void }
 
 export default function RoleGate({ onEnter }: Props) {
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
-  const [pinConfirm, setPinConfirm] = useState('');
   const [studentError, setStudentError] = useState('');
   const [teacherError, setTeacherError] = useState('');
   const [busy, setBusy] = useState(false);
-  const firstTime = !hasTeacherPin();
 
   const enterStudent = (e: FormEvent) => {
     e.preventDefault();
@@ -21,10 +19,7 @@ export default function RoleGate({ onEnter }: Props) {
     e.preventDefault();
     setTeacherError(''); setBusy(true);
     try {
-      if (firstTime) {
-        if (pin !== pinConfirm) throw new Error('Los dos PIN no coinciden.');
-        await setTeacherPin(pin);
-      } else if (!(await verifyTeacherPin(pin))) throw new Error('PIN incorrecto.');
+      if (!(await verifyTeacherPin(pin))) throw new Error('PIN incorrecto.');
       onEnter(teacherSession());
     } catch (err) { setTeacherError(err instanceof Error ? err.message : 'No se pudo entrar.'); }
     finally { setBusy(false); }
@@ -47,11 +42,10 @@ export default function RoleGate({ onEnter }: Props) {
         <form className="role-panel" onSubmit={enterTeacher} aria-labelledby="role-teacher">
           <div className="role-panel-icon"><UserRound size={22} /></div>
           <h2 id="role-teacher">Profesor</h2>
-          <p>{firstTime ? 'Primera vez en este navegador: crea un PIN para proteger la vista del profesor.' : 'Introduce el PIN del profesor.'}</p>
-          <label className="field">{firstTime ? 'Nuevo PIN (4–32 caracteres)' : 'PIN'}<input type="password" value={pin} autoComplete={firstTime ? 'new-password' : 'current-password'} maxLength={32} onChange={e => { setPin(e.target.value); setTeacherError(''); }} /></label>
-          {firstTime && <label className="field">Repite el PIN<input type="password" value={pinConfirm} autoComplete="new-password" maxLength={32} onChange={e => { setPinConfirm(e.target.value); setTeacherError(''); }} /></label>}
+          <p>Introduce el PIN del profesor.</p>
+          <label className="field">PIN<input type="password" value={pin} autoComplete="current-password" maxLength={32} onChange={e => { setPin(e.target.value); setTeacherError(''); }} /></label>
           {teacherError && <p className="role-error" role="alert">{teacherError}</p>}
-          <button className="button secondary" type="submit" disabled={busy || pin.length < 4}><KeyRound size={15} /> {firstTime ? 'Crear PIN y entrar' : 'Entrar como profesor'}</button>
+          <button className="button secondary" type="submit" disabled={busy || pin.length < 4}><KeyRound size={15} /> Entrar como profesor</button>
         </form>
       </div>
       <p className="role-footnote"><LockKeyhole size={13} /> Todo se guarda en este navegador. El PIN separa los espacios en un equipo compartido; no es una cuenta ni protege frente a quien borre los datos del navegador.</p>
