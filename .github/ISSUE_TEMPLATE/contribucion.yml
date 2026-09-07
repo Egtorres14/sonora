@@ -1,0 +1,44 @@
+name: Contribuir muestras al corpus
+description: Adjunta la colección JSON exportada desde Biblioteca (y opcionalmente un ZIP con el audio) para que el modelo comunitario aprenda de ella.
+title: "Contribución: <descripción breve>"
+labels: [contribucion]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por contribuir. El flujo automático validará el JSON con el esquema de la app, descartará duplicados y abrirá un pull request con los registros. **No incluyas trabajos de estudiantes sin su permiso** ni audio con derechos de terceros.
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Qué contiene
+      description: Fuentes, cómo se procesaron y cómo verificaste las etiquetas (escucha, comparación con la fuente, registro del proyecto).
+      placeholder: "12 grabaciones propias de campanas y voz; versiones con pitch shift (+5 st) y reversa exportadas desde Reaper; etiquetas comprobadas contra el proyecto."
+    validations:
+      required: true
+  - type: dropdown
+    id: licencia
+    attributes:
+      label: Licencia del audio y de las etiquetas
+      options:
+        - CC0 (dominio público)
+        - CC BY 4.0
+        - Solo métricas y etiquetas (sin audio)
+    validations:
+      required: true
+  - type: checkboxes
+    id: garantias
+    attributes:
+      label: Confirmaciones
+      options:
+        - label: Tengo derecho a compartir este material y acepto que se use para entrenar y validar el modelo.
+          required: true
+        - label: Las etiquetas "presente/ausente" están verificadas; lo dudoso está marcado como pendiente.
+          required: true
+  - type: textarea
+    id: adjuntos
+    attributes:
+      label: Adjuntos
+      description: Arrastra aquí el archivo `.json` exportado desde **Biblioteca → Exportar colección** y, si quieres, un `.zip` con los WAV (máx. 25 MB por adjunto; puedes adjuntar varios).
+      placeholder: Suelta aquí los archivos.
+    validations:
+      required: true

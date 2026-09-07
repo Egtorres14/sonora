@@ -1,0 +1,452 @@
+[
+ {
+  "id": "drum-rimshot-roll-macleod",
+  "file": "drum-rimshot-roll-macleod.wav",
+  "category": "drum-hits",
+  "description": "Snare rimshot roll, dry studio recording (from 'Assorted Rimshots')",
+  "license": "CC BY 3.0",
+  "attribution": "Kevin MacLeod (incompetech.com), CC BY 3.0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kevin_MacLeod_assorted_rimshots_-_7-second_roll.wav"
+ },
+ {
+  "id": "guitar-acoustic-sample-ryguy",
+  "file": "guitar-acoustic-sample-ryguy.ogg",
+  "category": "acoustic-guitar",
+  "description": "Acoustic guitar demonstration: strums, picking, harmonics",
+  "license": "Public domain",
+  "attribution": "RyGuy, public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:AcousticGuitarSample.ogg"
+ },
+ {
+  "id": "guitar-spanish-chords-03",
+  "file": "guitar-spanish-chords-03.wav",
+  "category": "acoustic-guitar",
+  "description": "Spanish (nylon-string) guitar chords, close-miked",
+  "license": "CC0",
+  "attribution": "Wilfredor, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Audio_files_of_spanish_guitar_chords_03.wav"
+ },
+ {
+  "id": "guitar-spanish-chords-09",
+  "file": "guitar-spanish-chords-09.wav",
+  "category": "acoustic-guitar",
+  "description": "Spanish (nylon-string) guitar chord sequence",
+  "license": "CC0",
+  "attribution": "Wilfredor, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Audio_files_of_spanish_guitar_chords_09.wav"
+ },
+ {
+  "id": "piano-shumi-maritsa",
+  "file": "piano-shumi-maritsa.ogg",
+  "category": "piano",
+  "description": "Solo piano instrumental of 'Shumi Maritsa'",
+  "license": "CC0",
+  "attribution": "Parchokhalq, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shumi-Marista_Piano_Instrumental.ogg"
+ },
+ {
+  "id": "piano-cmajor-chord-progression",
+  "file": "piano-cmajor-chord-progression.ogg",
+  "category": "piano",
+  "description": "Piano I-IV-V-I-I-V-I chord progression in C major around middle C",
+  "license": "CC0",
+  "attribution": "CuriousC3301, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:C_major,_Middle_C,_I-IV-V-I-I-V-I_chord_progression.ogg"
+ },
+ {
+  "id": "violin-star-of-county-down",
+  "file": "violin-star-of-county-down.ogg",
+  "category": "violin-strings",
+  "description": "Solo violin, Irish folk tune 'Star of the County Down'",
+  "license": "CC0",
+  "attribution": "Endersslay, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Star_of_the_county_down.ogg"
+ },
+ {
+  "id": "violin-minstrel-boy",
+  "file": "violin-minstrel-boy.ogg",
+  "category": "violin-strings",
+  "description": "Solo violin rendition of 'The Minstrel Boy'",
+  "license": "CC0",
+  "attribution": "Endersslay, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Minstrel_Boy_2.ogg"
+ },
+ {
+  "id": "strings-frisells-vals-78rpm",
+  "file": "strings-frisells-vals-78rpm.wav",
+  "category": "violin-strings",
+  "description": "Swedish folk waltz (fiddle/strings), archival 78 rpm transfer with surface noise",
+  "license": "CC0",
+  "attribution": "Swedish Performing Arts Agency / Radio Sweden folk music recordings, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Frisells_Vals_no.2_-_SMV_-_SVA_BB_5340_22.wav"
+ },
+ {
+  "id": "trumpet-natural-bflat",
+  "file": "trumpet-natural-bflat.ogg",
+  "category": "brass-woodwind",
+  "description": "Natural trumpet in B-flat, harmonic series",
+  "license": "CC0",
+  "attribution": "ПростоУчастник, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Natural_trumpet_B-flat.ogg"
+ },
+ {
+  "id": "flute-melody-pdsounds",
+  "file": "flute-melody-pdsounds.ogg",
+  "category": "brass-woodwind",
+  "description": "Solo flute melodic phrase, mono",
+  "license": "Public domain",
+  "attribution": "hokuspokus (pdsounds.org), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Flute_2.ogg"
+ },
+ {
+  "id": "sax-baritone-growl",
+  "file": "sax-baritone-growl.ogg",
+  "category": "brass-woodwind",
+  "description": "Baritone saxophone growl",
+  "license": "CC BY 3.0",
+  "attribution": "thanvannispen (Freesound), CC BY 3.0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sax_growl.ogg"
+ },
+ {
+  "id": "trombone-multiphonics",
+  "file": "trombone-multiphonics.ogg",
+  "category": "brass-woodwind",
+  "description": "Trombone multiphonics (playing and singing simultaneously)",
+  "license": "Public domain",
+  "attribution": "Jaser 12345, public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Trombone-multiphonics.ogg"
+ },
+ {
+  "id": "clarinet-basset-improvisation",
+  "file": "clarinet-basset-improvisation.ogg",
+  "category": "brass-woodwind",
+  "description": "Basset clarinet solo improvisation, live recording",
+  "license": "Public domain",
+  "attribution": "Theo Jörgensmann, public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Cool_in_Rhythmn_basset_clarinet_solo_improvisation_2008.ogg"
+ },
+ {
+  "id": "bells-church-leverkusen",
+  "file": "bells-church-leverkusen.oga",
+  "category": "bells-metallic",
+  "description": "Church bells ringing, Leverkusen 2007, stereo field recording",
+  "license": "Public domain",
+  "attribution": "natalie (pdsounds.org), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Church_bells_-_Leverkusen,_2007.oga"
+ },
+ {
+  "id": "gong-chinese-large",
+  "file": "gong-chinese-large.wav",
+  "category": "bells-metallic",
+  "description": "Large Chinese (Tao-Chi) gong strike with long decay",
+  "license": "CC0",
+  "attribution": "the_very_Real_Horst (Freesound), CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:240382_the-very-real-horst_chinese-gong-finish-session-2014-06-10-29-143.wav"
+ },
+ {
+  "id": "gong-bell-vibrant-short",
+  "file": "gong-bell-vibrant-short.ogg",
+  "category": "bells-metallic",
+  "description": "Single vibrant gong/bell tone",
+  "license": "CC0",
+  "attribution": "stephan (pdsounds.org), CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gong_or_bell_vibrant_(short).ogg"
+ },
+ {
+  "id": "chime-koshi-wind",
+  "file": "chime-koshi-wind.ogg",
+  "category": "bells-metallic",
+  "description": "Koshi wind chime with bell rods, eight tones",
+  "license": "CC0",
+  "attribution": "Membeth, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Windglockenspiel.Koshi.ogg"
+ },
+ {
+  "id": "cowbell-pattern",
+  "file": "cowbell-pattern.ogg",
+  "category": "bells-metallic",
+  "description": "Cowbell rhythm pattern",
+  "license": "Public domain",
+  "attribution": "Freddythehat, public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Cowbell.ogg"
+ },
+ {
+  "id": "djembe-accompaniment",
+  "file": "djembe-accompaniment.ogg",
+  "category": "hand-percussion",
+  "description": "Djembe at medium pitch: bass, tone and slap strokes",
+  "license": "CC0",
+  "attribution": "Michi Henning, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Djembe_accompaniment.ogg"
+ },
+ {
+  "id": "djembe-ceramic-improv",
+  "file": "djembe-ceramic-improv.wav",
+  "category": "hand-percussion",
+  "description": "Ceramic djembe improvisation, Zoom H2n floor recording",
+  "license": "CC0",
+  "attribution": "RutgerMuller (Freesound), CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ceramic_Djembe.wav"
+ },
+ {
+  "id": "bongo-cumbia-loop",
+  "file": "bongo-cumbia-loop.wav",
+  "category": "hand-percussion",
+  "description": "Bongos cumbia beat at 99 BPM, mono, unprocessed (AKG C214)",
+  "license": "CC0",
+  "attribution": "MarleneAyni (Freesound), CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bongo_sound.wav"
+ },
+ {
+  "id": "tambourine-halfmoon",
+  "file": "tambourine-halfmoon.ogg",
+  "category": "hand-percussion",
+  "description": "Half-moon tambourine pattern",
+  "license": "Public domain",
+  "attribution": "Freddythehat, public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tambourine.ogg"
+ },
+ {
+  "id": "tambourine-headless",
+  "file": "tambourine-headless.wav",
+  "category": "hand-percussion",
+  "description": "Headless tambourine (jingles only)",
+  "license": "CC0",
+  "attribution": "Michielderoo, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Headless_tambourine.wav"
+ },
+ {
+  "id": "handclaps-palmas-flamenco",
+  "file": "handclaps-palmas-flamenco.ogg",
+  "category": "hand-percussion",
+  "description": "Flamenco hand clapping (palmas redoble) at 220 BPM",
+  "license": "CC0",
+  "attribution": "Santiago Sánchez Cifuentes, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Palmas_redoble_(flamenco_clapping),_220_BPM.ogg"
+ },
+ {
+  "id": "field-rain-thunder-stockholm",
+  "file": "field-rain-thunder-stockholm.ogg",
+  "category": "field-recording",
+  "description": "Rain and thunder, Sundbyberg, Stockholm",
+  "license": "Public domain",
+  "attribution": "User:Caesar, public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rain_and_thunder.ogg"
+ },
+ {
+  "id": "field-rain-veranda-thunder",
+  "file": "field-rain-veranda-thunder.ogg",
+  "category": "field-recording",
+  "description": "Rain on a veranda with distant thunder, mono",
+  "license": "Public domain",
+  "attribution": "ezwa (pdsounds.org), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rain_on_a_veranda_and_t.ogg"
+ },
+ {
+  "id": "field-wind-breath",
+  "file": "field-wind-breath.ogg",
+  "category": "field-recording",
+  "description": "Wind blowing, gusty 'windy breath', mono",
+  "license": "Public domain",
+  "attribution": "stilgar (pdsounds.org), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Windy_breath.ogg"
+ },
+ {
+  "id": "field-storm-wind-killiney",
+  "file": "field-storm-wind-killiney.ogg",
+  "category": "field-recording",
+  "description": "Storm Floris wind gusts on Killiney Hill, Ireland (no rain)",
+  "license": "CC0",
+  "attribution": "Karlunun, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Killiney_Hill_Storm_Floris_20250804_1537.ogg"
+ },
+ {
+  "id": "field-birds-garden",
+  "file": "field-birds-garden.ogg",
+  "category": "field-recording",
+  "description": "Birds singing in a garden, afternoon, mono",
+  "license": "Public domain",
+  "attribution": "ezwa (pdsounds.org), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Birds_singing_in_garden.ogg"
+ },
+ {
+  "id": "field-bird-call-taiwan",
+  "file": "field-bird-call-taiwan.ogg",
+  "category": "field-recording",
+  "description": "Single bird call with separated chirps, central Taiwan, dawn",
+  "license": "CC0",
+  "attribution": "Jidanni, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bird_call_with_so-called_separated_chirps.ogg"
+ },
+ {
+  "id": "field-river-stony-bed",
+  "file": "field-river-stony-bed.ogg",
+  "category": "field-recording",
+  "description": "Shallow small river over a stony riverbed, stereo",
+  "license": "Public domain",
+  "attribution": "stephan (pdsounds.org), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shallow_small_river_with_stony_riverbed.ogg"
+ },
+ {
+  "id": "field-water-trickle-burn",
+  "file": "field-water-trickle-burn.wav",
+  "category": "field-recording",
+  "description": "Small burn trickling through woodland (Zoom H1)",
+  "license": "CC0",
+  "attribution": "FractalStudios (Freesound), CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:363120_fractalstudios_water-trickle.wav"
+ },
+ {
+  "id": "field-police-siren-dc",
+  "file": "field-police-siren-dc.ogg",
+  "category": "field-recording",
+  "description": "American police siren passing, Washington DC, mono",
+  "license": "Public domain",
+  "attribution": "lezer (pdsounds.org), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:American_police_siren_i.ogg"
+ },
+ {
+  "id": "field-shopping-mall-ambience",
+  "file": "field-shopping-mall-ambience.ogg",
+  "category": "field-recording",
+  "description": "Shopping mall interior ambience, lightly crowded, stereo",
+  "license": "Public domain",
+  "attribution": "natalie (pdsounds.org), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shopping_mall_less_crowded.ogg"
+ },
+ {
+  "id": "field-traffic-port-harcourt",
+  "file": "field-traffic-port-harcourt.ogg",
+  "category": "field-recording",
+  "description": "Busy street traffic with background voices, Port Harcourt, Nigeria",
+  "license": "CC BY 4.0",
+  "attribution": "ElemePodcast, CC BY 4.0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Audio_sound_of_a_busy_traffic_in_Porthacourt.ogg"
+ },
+ {
+  "id": "field-engine-bicycle-2stroke",
+  "file": "field-engine-bicycle-2stroke.wav",
+  "category": "field-recording",
+  "description": "USSR D-4 two-stroke auxiliary bicycle engine (1956) running",
+  "license": "Public domain",
+  "attribution": "Viktor Khodyeyev, public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:USSR_bicycle_2T_engine_D-4.wav"
+ },
+ {
+  "id": "field-machinery-pulp-mill",
+  "file": "field-machinery-pulp-mill.ogg",
+  "category": "field-recording",
+  "description": "Industrial pulp mill machinery (Work With Sounds project)",
+  "license": "CC BY 4.0",
+  "attribution": "Work With Sounds / Werstas, CC BY 4.0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:WWS_Pulpmill.ogg"
+ },
+ {
+  "id": "speech-voa-ashley-johnson",
+  "file": "speech-voa-ashley-johnson.ogg",
+  "category": "voice-speech",
+  "description": "Clear studio news-reader sentence, VOA Learning English (US Government work)",
+  "license": "Public domain",
+  "attribution": "VOA Learning English, public domain (US Government work), via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ashley_Johnson_is_an_energy,_trade_and_economics_expert.ogg"
+ },
+ {
+  "id": "speech-voa-neural-networks",
+  "file": "speech-voa-neural-networks.ogg",
+  "category": "voice-speech",
+  "description": "Studio news-reader sentence about neural networks, VOA Learning English",
+  "license": "Public domain",
+  "attribution": "VOA Learning English, public domain (US Government work), via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Another_kind_of_machine_learning,_called_neural_networks,_is_also_%E2%80%9Crevolutionizing%E2%80%9D_AI,_the_report_said.ogg"
+ },
+ {
+  "id": "speech-gandhi-1931-london",
+  "file": "speech-gandhi-1931-london.oga",
+  "category": "voice-speech",
+  "description": "M. K. Gandhi speech while planting a tree, London 1931 (historic lo-fi)",
+  "license": "Public domain",
+  "attribution": "Mohandas K. Gandhi / unknown recorder (gandhiserve.org), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:M._K._Gandhi%27s_speech_while_planting_a_tree_at_London,_December_3,_1931.oga"
+ },
+ {
+  "id": "speech-sullivan-wax-cylinder-1888",
+  "file": "speech-sullivan-wax-cylinder-1888.ogg",
+  "category": "voice-speech",
+  "description": "Arthur Sullivan after-dinner speech, Edison wax cylinder 1888 (very lo-fi historic)",
+  "license": "Public domain",
+  "attribution": "George Gouraud recording of Arthur Sullivan, 1888 (US National Park Service, Edison NHP), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Arthur_Sullivan_-_wax_cylinder_recording.ogg"
+ },
+ {
+  "id": "singing-female-vibrato",
+  "file": "singing-female-vibrato.wav",
+  "category": "voice-singing",
+  "description": "Solo female voice sustaining notes with vibrato, chest voice",
+  "license": "CC0",
+  "attribution": "Beetricks, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Female-vibrato-1.wav"
+ },
+ {
+  "id": "singing-de-curvo-cuerpo",
+  "file": "singing-de-curvo-cuerpo.wav",
+  "category": "voice-singing",
+  "description": "Vocal excerpt of 'De Curvo Cuerpo' performed by Las Áñez (female voices)",
+  "license": "CC0",
+  "attribution": "Juanita Añez / Las Áñez, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fragmento_de_%22De_Curvo_Cuerpo%22.wav"
+ },
+ {
+  "id": "singing-army-chorus-a-cappella",
+  "file": "singing-army-chorus-a-cappella.ogg",
+  "category": "voice-singing",
+  "description": "US Army Band chorus, 'Angels We Have Heard on High', a cappella",
+  "license": "Public domain",
+  "attribution": "The United States Army Band, public domain (US Government work), via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:U.S._Army_Band_-_Angels_We_Have_Heard_on_High.ogg"
+ },
+ {
+  "id": "synth-braam-unfa",
+  "file": "synth-braam-unfa.flac",
+  "category": "synth-electronic",
+  "description": "Cinematic 'braam' hit made with sampled instruments and open-source plug-ins",
+  "license": "CC0",
+  "attribution": "unfa (Freesound), CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:647712_unfa_braam.flac"
+ },
+ {
+  "id": "synth-additive-sawtooth-220hz",
+  "file": "synth-additive-sawtooth-220hz.wav",
+  "category": "synth-electronic",
+  "description": "220 Hz tone with harmonics added each second, building to a sawtooth (wavepot-generated)",
+  "license": "CC0",
+  "attribution": "Potasmic, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Additive_220Hz_Sawtooth_Wave.wav"
+ },
+ {
+  "id": "synth-pad-vibrating-melody",
+  "file": "synth-pad-vibrating-melody.ogg",
+  "category": "synth-electronic",
+  "description": "Swaying vibrating synth pad melody, stereo",
+  "license": "Public domain",
+  "attribution": "stephan (pdsounds.org), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Melody_vibrating_synth.ogg"
+ },
+ {
+  "id": "synth-theremin-bach",
+  "file": "synth-theremin-bach.ogg",
+  "category": "synth-electronic",
+  "description": "Moog Etherwave Pro theremin, middle register, Bach melody",
+  "license": "Public domain",
+  "attribution": "Effebit (played by Fabio Pesce), public domain, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Epro_theremin_middle_bach.ogg"
+ },
+ {
+  "id": "synth-chiptune-lo-res-legend",
+  "file": "synth-chiptune-lo-res-legend.wav",
+  "category": "synth-electronic",
+  "description": "Chiptune (8-bit style) music demonstration",
+  "license": "CC0",
+  "attribution": "NenhumaFênix, CC0, via Wikimedia Commons",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lo-Res_Legend.wav"
+ }
+]

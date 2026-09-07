@@ -1,0 +1,39 @@
+name: Recoger contribución de muestras
+
+# Cualquiera abre un issue con la plantilla "Contribuir muestras" y adjunta la colección JSON
+# exportada desde Biblioteca (y opcionalmente un ZIP con audio). Este flujo valida el JSON con el
+# mismo esquema de la app, descarta duplicados, guarda los registros en corpus/contributions/ mediante
+# un pull request y sube el audio a la release "corpus-audio". No necesita servidor ni claves.
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  ingerir:
+    if: contains(github.event.issue.labels.*.name, 'contribucion')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: contrib-${{ github.event.issue.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validar e integrar
+        run: npx tsx scripts/contrib/ingest-issue.ts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          REPO: ${{ github.repository }}

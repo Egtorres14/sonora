@@ -1,0 +1,45 @@
+name: Validar corpus y publicar modelo comunitario
+
+# Cada vez que cambia el corpus (o a mano), entrena el modelo local con el mismo código de la app
+# sobre corpus/coleccion.json + corpus/contributions/*.json, publica la tabla de validación y el
+# modelo entrenado como assets de la release "modelo-comunitario". Nada se inventa: las cifras salen
+# de particiones separadas por grabación de origen.
+
+on:
+  push:
+    branches: [main]
+    paths: ['corpus/**', 'services/learning/**', 'services/audio/**', 'scripts/corpus/**', 'scripts/contrib/**']
+  pull_request:
+    paths: ['corpus/**', 'services/learning/**', 'services/audio/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  entrenar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Entrenar y validar
+        run: npx tsx scripts/contrib/train-community.ts corpus/coleccion.json corpus/contributions/*.json
+      - name: Resumen
+        run: cat corpus-out/VALIDACION-CI.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Comentar en el PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --body-file corpus-out/VALIDACION-CI.md
+      - name: Publicar modelo comunitario
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view modelo-comunitario >/dev/null 2>&1 || gh release create modelo-comunitario --title "Modelo comunitario" --notes "Modelo local entrenado en CI con el corpus del repositorio. Se actualiza automáticamente."
+          gh release upload modelo-comunitario corpus-out/community-model.json corpus-out/VALIDACION-CI.md --clobber

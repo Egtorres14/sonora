@@ -1,0 +1,6 @@
+{
+  "name": "Audio Project Evaluator AI",
+  "description": "An AI-powered tool for students and educators to evaluate audio production projects. Upload a .wav file to receive a detailed analysis of technical quality and creative processing, including ratings and constructive feedback.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
