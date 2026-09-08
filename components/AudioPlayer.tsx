@@ -17,6 +17,8 @@ interface AudioPlayerProps {
   extraMarkers?: Marker[];
   /** Recibe una función para saltar a un instante y reproducir. */
   seekRef?: MutableRefObject<((time: number) => void) | null>;
+  /** Tiempo de reproducción actual (para el cursor de la línea de evidencias). */
+  onTime?: (time: number) => void;
 }
 
 const buildMarkers = (f: AudioFeatures | null): Marker[] => {
@@ -32,7 +34,8 @@ const buildMarkers = (f: AudioFeatures | null): Marker[] => {
   return m;
 };
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features, extraMarkers = [], seekRef }) => {
+const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features, extraMarkers = [], seekRef, onTime }) => {
+  const onTimeRef = useRef(onTime); onTimeRef.current = onTime;
   const extraKey = extraMarkers.map((m) => `${m.start.toFixed(2)}-${m.end.toFixed(2)}-${m.label}`).join('|');
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -76,7 +79,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features, extraMarkers =
     ws.on('ready', onReady);
     ws.on('play', () => setIsPlaying(true));
     ws.on('pause', () => setIsPlaying(false));
-    ws.on('timeupdate', (t: number) => setCurrentTime(t));
+    ws.on('timeupdate', (t: number) => { setCurrentTime(t); onTimeRef.current?.(t); });
     ws.on('finish', () => setIsPlaying(false));
     ws.on('error', () => { setReady(false); setError('El navegador no pudo reproducir este formato. Las métricas del archivo siguen disponibles.'); });
     return () => { wavesurferRef.current = null; regionsRef.current = null; if (seekRef) seekRef.current = null; ws.destroy(); };

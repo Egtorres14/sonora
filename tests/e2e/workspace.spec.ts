@@ -148,7 +148,7 @@ test('menú de entrada: el estudiante entrega con su nombre y el profesor lo ve 
   await page.getByLabel('Sinopsis de la pieza').fill('Paisaje sonoro construido a partir de una campana.');
   await page.getByRole('button', { name: /Mis entregas/ }).first().click();
   await expect(page.locator('tbody tr')).toHaveCount(1);
-  await expect(page.locator('tbody tr')).toContainText('Pendiente de calificación');
+  await expect(page.locator('tbody tr')).toContainText('En revisión');
   // Profesor: crea el PIN, ve el nombre del estudiante y califica
   await page.getByRole('button', { name: /Salir/ }).click();
   await page.getByLabel('PIN', { exact: true }).fill('Felipebolano2026');
@@ -162,6 +162,8 @@ test('menú de entrada: el estudiante entrega con su nombre y el profesor lo ve 
   await page.getByLabel('Efectos extra').selectOption('absent');
   await expect(page.getByTestId('final-score')).toContainText('30');
   await page.getByLabel('Feedback para el estudiante').fill('Buen trabajo con la reversa.');
+  await page.getByRole('button', { name: 'Publicar al estudiante' }).click();
+  await expect(page.getByRole('button', { name: 'Retirar publicación' })).toBeVisible();
   // Rúbrica editable: sin exigir 48 kHz y con 3 herramientas obligatorias el total cambia
   await page.getByRole('button', { name: /Rúbrica/ }).click();
   await page.getByLabel('Puntos extra por efectos adicionales').fill('1');
@@ -192,7 +194,8 @@ test('evidencias con tiempos y motores de IA', async ({ page }) => {
   await expect(panel.locator('.evidence-row.medido').first()).toContainText(/Clic|Corte/);
   await page.getByRole('group', { name: 'Revisión de Reversa' }).getByRole('button', { name: 'Presente' }).click();
   await page.getByLabel('Evidencia de Reversa').fill('0:12–0:18 cola invertida');
-  await expect(panel.locator('.evidence-row.profesor').first()).toContainText('0:12.000–0:18.000');
+  await expect(panel.locator('.evidence-row.profesor').first()).toContainText('0:12–0:18');
+  await expect(page.locator('.evidence-timeline .tl-lane.profesor .tl-range')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Reproducir', exact: true })).toBeEnabled();
   await panel.locator('button.evidence-row.profesor').first().click();
   await expect(page.getByRole('button', { name: 'Pausar', exact: true })).toBeVisible();

@@ -35,5 +35,6 @@ export const ReviewSchema = z.object({
   overprocessing: z.enum(['unknown', 'none', 'Leve', 'Moderado', 'Severo']), extra: label,
   manualScore: n.min(0).max(200).nullable(),
   student: z.object({ name: z.string().min(1).max(60), submittedAt: z.string().datetime() }).optional(),
+  published: z.boolean().optional(),
 });
 export const DatasetSchema = z.object({ version: z.literal(1), records: z.array(ReviewSchema).max(10000) });

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowRight, AudioLines, GraduationCap, KeyRound, LockKeyhole, UserRound } from 'lucide-react';
+import { ArrowRight, GraduationCap, KeyRound, LockKeyhole, UserRound } from 'lucide-react';
 import { verifyTeacherPin, studentSession, teacherSession, type Session } from '../services/session';
 
 interface Props { onEnter: (session: Session) => void }
@@ -27,7 +27,7 @@ export default function RoleGate({ onEnter }: Props) {
 
   return <div className="role-gate">
     <div className="role-gate-inner">
-      <div className="role-brand"><AudioLines size={34} strokeWidth={1.5} /><span>sonora<span className="brand-dot">.</span><small>LABORATORIO DE AUDIO</small></span></div>
+      <div className="role-brand"><span className="brand-bars" aria-hidden="true">{[0, 1, 2, 3, 4].map(i => <i key={i} style={{ animationDelay: `${i * 0.18}s` }} />)}</span><span>sonora<span className="brand-dot">.</span><small>LABORATORIO DE AUDIO</small></span></div>
       <h1>¿Quién entra?</h1>
       <p className="role-lead">Los estudiantes suben su proyecto y ven su entrega. El profesorado revisa, califica y gestiona la biblioteca y la rúbrica.</p>
       <div className="role-panels">

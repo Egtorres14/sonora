@@ -1,11 +1,13 @@
 import { Check, ClipboardCheck, RotateCcw } from 'lucide-react';
 import { calculateReview, EFFECTS, type ReviewRecord, type ReviewLabel } from '../../services/review';
 import type { RubricConfig } from '../../services/scoring/rubric';
+import type { EngineSettings } from '../../services/engines';
 
-interface Props { record: ReviewRecord; rubric: RubricConfig; onChange: (patch: Partial<ReviewRecord>) => void }
+interface Props { record: ReviewRecord; rubric: RubricConfig; engines?: EngineSettings; onChange: (patch: Partial<ReviewRecord>) => void }
 const labelOptions: { value: ReviewLabel; label: string }[] = [{ value: 'unknown', label: 'Pendiente' }, { value: 'present', label: 'Presente' }, { value: 'absent', label: 'Ausente' }];
 
-export default function ReviewPanel({ record, rubric, onChange }: Props) {
+export default function ReviewPanel({ record, rubric, engines, onChange }: Props) {
+  const ai = record.ai;
   const score = calculateReview(record, rubric);
   const required = new Set(rubric.creative.requiredTools);
   const maxManual = rubric.totalPoints + rubric.bonus.points;
@@ -22,6 +24,9 @@ export default function ReviewPanel({ record, rubric, onChange }: Props) {
       <div className="score-breakdown">{[{ label: 'Formal', value: score.formal.total, max: score.formalMax }, { label: 'Técnica', value: score.technical.total, max: score.technicalMax }, { label: 'Creatividad', value: score.creative.total, max: score.creative.max }].map(row => <div key={row.label}><span>{row.label}</span><b>{row.label === 'Creatividad' && score.pending.length ? `${score.creative.minimum}–${row.value}` : row.value}<small> / {row.max}</small></b><div><i style={{ width: `${row.max ? row.value / row.max * 100 : 0}%` }} /></div></div>)}<div className="bonus-row"><span>Extra</span><b>{record.extra === 'unknown' ? 'Pendiente' : `+${score.bonus}`}</b></div></div>
       <details className="score-details"><summary>Ver desglose de criterios</summary>{[...score.formal.lines, ...score.technical.lines, ...score.creative.lines].map((line, i) => <div key={i}><b>{line.criterio}</b><span>{'pending' in line && line.pending ? 'Pendiente' : `${line.puntos > 0 ? '+' : ''}${line.puntos}`}</span><p>{line.detalle}</p></div>)}</details>
       <label className="field">Ajustar nota manualmente<input type="number" min={0} max={maxManual} step={0.1} value={record.manualScore ?? ''} placeholder="Sin ajuste" onChange={e => { if (e.target.value === '') onChange({ manualScore: null }); else if (e.target.validity.valid) onChange({ manualScore: Number(e.target.value) }); }} /></label>{score.manual && <button className="text-button" onClick={() => onChange({ manualScore: null })}><RotateCcw size={13} /> Volver a la nota calculada</button>}
+      {ai && <div className="used-opinion"><span className="eyebrow">SEGUNDA OPINIÓN USADA</span><div><span>Motor</span><b>{ai.meta.modelLabel}</b></div><div><span>Ejecuciones · acuerdo</span><b>{ai.meta.runs} · {ai.meta.agreement === null ? 'n/a' : `${Math.round(ai.meta.agreement * 100)} %`}</b></div><div><span>Coste orientativo</span><b>{ai.meta.estimatedCostUsd.toFixed(4)} $</b></div></div>}
+      {!ai && engines && engines.engine !== 'local' && <div className="used-opinion"><span className="eyebrow">SEGUNDA OPINIÓN</span><div><span>Motor elegido</span><b>{engines.models[engines.engine]}</b></div><div><span>Estado</span><b>Sin consultar</b></div></div>}
+      {record.student && <div className={`publish-state ${record.published ? 'on' : ''}`}>{record.published ? 'Nota y feedback publicados: el estudiante ya los ve.' : 'Nota sin publicar: el estudiante solo ve las mediciones.'}</div>}
       <div className="score-note">La rúbrica admite hasta {rubric.bonus.points.toLocaleString('es')} puntos extra. Las sugerencias de modelos no cambian tus decisiones.</div>
     </aside>
   </div>;

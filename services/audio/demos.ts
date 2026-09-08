@@ -2,7 +2,7 @@ import { encodeWav16 } from './wav';
 
 export const DEMOS = [
   { id: 'clean', name: 'campana_estudio.wav', title: 'Campana de estudio', description: 'Una pieza limpia de 60 s para explorar los medidores.', issue: 'Referencia limpia', duration: '1:00' },
-  { id: 'clicks', name: 'campana_cortes.wav', title: 'Edición con clics', description: 'Tres impulsos añadidos en los segundos 12, 28 y 43.', issue: '3 clics insertados', duration: '1:00' },
+  { id: 'clicks', name: 'campana_cortes.wav', title: 'Edición con clics', description: 'Tres impulsos añadidos en 0:12, 0:28 y 0:43.', issue: '3 clics insertados', duration: '1:00' },
   { id: 'clipping', name: 'campana_saturada.wav', title: 'Ganancia al límite', description: 'Saturación intencional entre los segundos 20 y 21.', issue: 'Clipping insertado', duration: '1:00' },
   { id: 'reverse', name: 'campana_reversa.wav', title: 'El sonido al revés', description: 'Envolventes invertidas para contrastar escucha y detección.', issue: 'Reversa sintética', duration: '1:00' },
 ] as const;
@@ -13,7 +13,9 @@ export const createDemo = (id: DemoId): File => {
   const left = new Float32Array(size), right = new Float32Array(size);
   for (let i = 0; i < size; i++) {
     const t = i / rate, phase = t % 4;
-    const envelope = Math.exp(-(id === 'reverse' ? 4 - phase : phase) * 2.6);
+    // Ataque de 8 ms y liberación de 20 ms: un instrumento real no arranca ni se corta en una sola muestra.
+    const shape = Math.min(1, phase / 0.008, (4 - phase) / 0.02);
+    const envelope = Math.exp(-(id === 'reverse' ? 4 - phase : phase) * 2.6) * shape;
     const fade = Math.min(1, t / 0.02, (60 - t) / 0.1);
     const bell = (Math.sin(2 * Math.PI * 440 * t) + 0.4 * Math.sin(2 * Math.PI * 1109 * t) + 0.14 * Math.sin(2 * Math.PI * 2903 * t)) * 0.2 * envelope;
     const bed = Math.sin(2 * Math.PI * 110 * t) * 0.012;

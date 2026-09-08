@@ -28,6 +28,8 @@ export interface ReviewRecord {
   manualScore: number | null;
   /** Entrega de un estudiante (nombre verificado al entrar y fecha). */
   student?: { name: string; submittedAt: string };
+  /** El profesor ha publicado la nota y el feedback para el estudiante. */
+  published?: boolean;
   ai?: AudioEvaluation;
 }
 
