@@ -8,7 +8,7 @@ import { formatTimestamp } from './audio/features';
 import { prepareModelAudio } from './audio/prepare';
 import { renderSpectrogramPng, renderWaveformPng } from './audio/spectrogram';
 import { DEFAULT_RUBRIC, computeFinal, scoreCreative, scoreFormal, scoreTechnical, type RubricConfig } from './scoring/rubric';
-import { PROVIDER_LABELS, findModel, runAssessment, type EvaluationInput, type RunConfig } from './llm';
+import { PROVIDER_LABELS, findModel, runAssessment, type Audience, type EvaluationInput, type RunConfig } from './llm';
 import { ProviderError } from './llm/types';
 
 export interface EvaluateProjectArgs {
@@ -17,6 +17,8 @@ export interface EvaluateProjectArgs {
   synopsis: string;
   context: string;
   rubric?: RubricConfig;
+  /** 'teacher' (por defecto) o 'student': cambia el tono y el enfoque del prompt, no el esquema. */
+  audience?: Audience;
   llm: RunConfig;
   onStage?: (stage: string) => void;
 }
@@ -32,7 +34,7 @@ export const evaluateProject = async (args: EvaluateProjectArgs): Promise<AudioE
   const formal = scoreFormal(fileName, args.synopsis, rubric);
   const technical = scoreTechnical(f, rubric);
 
-  const input: EvaluationInput = { fileName, synopsis: args.synopsis, context: args.context, features: f, rubric };
+  const input: EvaluationInput = { fileName, audience: args.audience ?? 'teacher', synopsis: args.synopsis, context: args.context, features: f, rubric };
   const warnings = [...f.analysis.warnings];
 
   if (model.inputs.audio) {

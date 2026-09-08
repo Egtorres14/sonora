@@ -48,8 +48,12 @@ export interface ModelImage {
   description: string; // qué representa (ejes, escala) para el prompt
 }
 
+/** A quién va dirigida la lectura: el profesor (revisión completa) o el estudiante (lectura orientativa, sin nota). */
+export type Audience = 'teacher' | 'student';
+
 export interface EvaluationInput {
   fileName: string;
+  audience?: Audience;
   synopsis: string;
   context: string;
   features: AudioFeatures;

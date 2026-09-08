@@ -4,8 +4,7 @@ import type { AnalyzedAudio } from '../../services/audio';
 import type { LocalModel } from '../../services/learning/types';
 import { predictLocalModel } from '../../services/learning/model';
 import { EFFECTS, type ReviewRecord } from '../../services/review';
-import { loadKey } from '../../services/settings';
-import { engineCost, type EngineSettings } from '../../services/engines';
+import { engineCost, loadKey, type EngineSettings } from '../../services/engines';
 import { findModel } from '../../services/llm/catalog';
 import { evaluateProject } from '../../services/evaluation';
 
@@ -32,7 +31,7 @@ export default function ModelAdvice({ record, analyzed, model, engines, teacher,
     if (!analyzed || !external || !apiKey.trim()) return;
     const controller = new AbortController(); abort.current = controller; setBusy(true); setError('');
     try {
-      const ai = await evaluateProject({ fileName: record.name, analyzed, synopsis: record.synopsis, context: record.context, llm: { provider: external, model: engines.models[external], runs, apiKey, signal: controller.signal }, onStage: setStage });
+      const ai = await evaluateProject({ fileName: record.name, analyzed, synopsis: record.synopsis, context: record.context, audience: teacher ? 'teacher' : 'student', llm: { provider: external, model: engines.models[external], runs, apiKey, signal: controller.signal }, onStage: setStage });
       if (!controller.signal.aborted) onChange({ ai });
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo consultar al proveedor.'); }
     finally { setBusy(false); setStage(''); abort.current = null; }

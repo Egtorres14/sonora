@@ -53,6 +53,30 @@ export const loadEngineSettings = (): EngineSettings => {
 export const saveEngineSettings = (s: EngineSettings) => store.set(KEY, JSON.stringify(s));
 export const resetEngineSettings = () => store.remove(KEY);
 
+// ----------------------------- Llaves de API -----------------------------
+// Se guardan en el navegador del profesor, una por proveedor, sin depender de ningún otro ajuste.
+// ADVERTENCIA: cualquier script de la página puede leerlas; para uso compartido, usa un backend.
+const PROVIDER_IDS: ProviderId[] = ['gemini', 'openai', 'anthropic'];
+const keyName = (p: ProviderId) => `sonora.key.${p}`;
+const legacyKeyName = (p: ProviderId) => `ape.key.${p}`;
+
+/** Devuelve la llave guardada (o '' si no hay). Migra las llaves de la versión anterior. */
+export const loadKey = (p: ProviderId): string => {
+  const current = store.get(keyName(p));
+  if (current) return current;
+  const legacy = store.get(legacyKeyName(p));
+  if (legacy) { store.set(keyName(p), legacy); store.remove(legacyKeyName(p)); return legacy; }
+  return '';
+};
+/** Guarda la llave (recortada). Una cadena vacía la borra. */
+export const saveKey = (p: ProviderId, key: string) => {
+  const trimmed = key.trim();
+  if (trimmed) store.set(keyName(p), trimmed);
+  else { store.remove(keyName(p)); store.remove(legacyKeyName(p)); }
+};
+export const hasKey = (p: ProviderId): boolean => loadKey(p).length > 0;
+export const clearKeys = () => PROVIDER_IDS.forEach((p) => { store.remove(keyName(p)); store.remove(legacyKeyName(p)); });
+
 export interface EngineInfo { id: EngineId; label: string; summary: string; pros: string; cons: string; listens: boolean; sees: boolean }
 
 export const ENGINE_INFO: EngineInfo[] = [

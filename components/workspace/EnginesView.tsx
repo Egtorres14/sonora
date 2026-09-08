@@ -1,9 +1,8 @@
 import { useRef, useState } from 'react';
 import { Check, KeyRound, LoaderCircle, Save, Trash2 } from 'lucide-react';
-import { ENGINE_INFO, engineCost, type EngineId, type EngineSettings } from '../../services/engines';
+import { ENGINE_INFO, engineCost, loadKey, saveKey, type EngineId, type EngineSettings } from '../../services/engines';
 import { modelsFor, findModel, PROVIDER_LABELS } from '../../services/llm/catalog';
 import type { ProviderId } from '../../services/llm/types';
-import { loadKey, saveKey } from '../../services/settings';
 import { testKey } from '../../services/llm/keycheck';
 
 interface Props { settings: EngineSettings; onSave: (s: EngineSettings) => void; submissions: number }
@@ -28,7 +27,7 @@ export default function EnginesView({ settings, onSave, submissions }: Props) {
       setChecking((c) => ({ ...c, [p]: false }));
     }
   };
-  const setKey = (p: ProviderId, value: string) => { setKeys((k) => ({ ...k, [p]: value })); saveKey(p, value, true); setDraft((d) => { const keyStatus = { ...d.keyStatus }; delete keyStatus[p]; return { ...d, keyStatus }; }); };
+  const setKey = (p: ProviderId, value: string) => { setKeys((k) => ({ ...k, [p]: value })); saveKey(p, value); setDraft((d) => { const keyStatus = { ...d.keyStatus }; delete keyStatus[p]; return { ...d, keyStatus }; }); };
   const choose = (engine: EngineId) => setDraft((d) => ({ ...d, engine }));
   const readyToUse = draft.engine === 'local' || !!keys[draft.engine].trim();
 
@@ -57,7 +56,7 @@ export default function EnginesView({ settings, onSave, submissions }: Props) {
                 <button type="button" className="button secondary" disabled={!keys[provider].trim() || checking[provider]} onClick={() => check(provider)}>{checking[provider] ? <LoaderCircle className="spin" size={14} /> : <KeyRound size={14} />} Probar</button>
                 {keys[provider] && <button type="button" className="icon-button" aria-label={`Borrar clave de ${PROVIDER_LABELS[provider]}`} onClick={() => setKey(provider, '')}><Trash2 size={14} /></button>}
               </div>
-              <small>Crea la clave en {KEY_HELP[provider]}. Se guarda solo en este navegador.</small>
+              <small>Crea la clave en {KEY_HELP[provider]}. {keys[provider].trim() ? 'Guardada en este navegador; se usará en cada consulta.' : 'Se guarda solo en este navegador.'}</small>
             </label>
             {status && <p className={`key-status ${status.ok ? 'ok' : 'bad'}`} role="status">{status.ok ? <Check size={13} /> : null}{status.message} · comprobada {new Date(status.checkedAt).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })}</p>}
           </div>}

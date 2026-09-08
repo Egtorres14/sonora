@@ -12,6 +12,7 @@ const mapError = (error: unknown): ProviderError => {
     // Gemini responde 400 (no 401) cuando la clave es inválida
     if (s === 401 || s === 403 || /API_KEY_INVALID|API key not valid|API key expired/i.test(error.message)) return new ProviderError('La clave de API de Gemini no es válida o ha caducado. Revísala en https://aistudio.google.com/apikey.', 'gemini', 'auth', error);
     if (/PERMISSION_DENIED|not found for API version|is not supported/i.test(error.message)) return new ProviderError(`Gemini no acepta esta petición para el modelo elegido: ${error.message.slice(0, 200)}`, 'gemini', 'bad-request', error);
+    if (s === 429 && /credits|prepay|billing/i.test(error.message)) return new ProviderError('El proyecto de AI Studio de esta clave no tiene saldo. Añade crédito o activa la facturación en https://ai.studio/projects y vuelve a intentarlo.', 'gemini', 'quota', error);
     if (s === 429) return new ProviderError('Cuota de Gemini agotada o límite de peticiones alcanzado. Espera un momento o revisa tu plan.', 'gemini', 'quota', error);
     if (s === 400) return new ProviderError(`Gemini rechazó la petición: ${error.message}`, 'gemini', 'bad-request', error);
     if (s >= 500) return new ProviderError('El servicio de Gemini no está disponible ahora mismo. Inténtalo de nuevo.', 'gemini', 'server', error);
