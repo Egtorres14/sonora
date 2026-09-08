@@ -7,7 +7,7 @@ import type { ProviderId } from './llm/types';
 import { defaultModelFor, findModel, estimateCost } from './llm/catalog';
 
 export type EngineId = 'local' | ProviderId;
-export interface KeyStatus { ok: boolean; checkedAt: string; message: string }
+export interface KeyStatus { ok: boolean; checkedAt: string; message: string; model?: string }
 /** independiente: el modelo escucha sin pistas. refuerzo: recibe el clasificador local y las decisiones del profesor y las contrasta. */
 export type AnalysisMode = 'independiente' | 'refuerzo';
 /** local: borrador determinista. ia: el modelo externo redacta el feedback a partir de la revisión cerrada. */
@@ -28,8 +28,17 @@ export interface EngineSettings {
 const KEY = 'sonora.engines.v1';
 const memory = new Map<string, string>();
 const store = {
-  get(k: string) { try { return typeof localStorage !== 'undefined' ? localStorage.getItem(k) : memory.get(k) ?? null; } catch { return memory.get(k) ?? null; } },
-  set(k: string, v: string) { try { if (typeof localStorage !== 'undefined') localStorage.setItem(k, v); else memory.set(k, v); } catch { memory.set(k, v); } },
+  get(k: string) { if (memory.has(k)) return memory.get(k)!; try { return typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null; } catch { return null; } },
+  set(k: string, v: string): boolean {
+    memory.set(k, v);
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(k, v);
+        if (localStorage.getItem(k) === v) { memory.delete(k); return true; }
+      }
+    } catch { /* Keep the session copy and report that persistence failed. */ }
+    return false;
+  },
   remove(k: string) { try { if (typeof localStorage !== 'undefined') localStorage.removeItem(k); } catch { /* */ } memory.delete(k); },
 };
 
@@ -87,7 +96,7 @@ const devKey = (p: ProviderId): string => {
 /** Devuelve la llave guardada (o la de desarrollo, o ''). Migra las llaves de la versión anterior. */
 export const loadKey = (p: ProviderId): string => {
   const current = store.get(keyName(p));
-  if (current) return current;
+  if (current !== null) return current;
   const legacy = store.get(legacyKeyName(p));
   if (legacy) { store.set(keyName(p), legacy); store.remove(legacyKeyName(p)); return legacy; }
   return devKey(p);
@@ -95,8 +104,15 @@ export const loadKey = (p: ProviderId): string => {
 /** Guarda la llave (recortada). Una cadena vacía la borra. */
 export const saveKey = (p: ProviderId, key: string) => {
   const trimmed = key.trim();
-  if (trimmed) store.set(keyName(p), trimmed);
-  else { store.remove(keyName(p)); store.remove(legacyKeyName(p)); }
+  if (trimmed) return store.set(keyName(p), trimmed);
+  store.remove(keyName(p)); store.remove(legacyKeyName(p));
+  // Remember an explicit deletion instead of reviving a development default.
+  if (devKey(p)) return store.set(keyName(p), '');
+  return !loadKey(p);
+};
+export const isKeyPersisted = (p: ProviderId, key: string): boolean => {
+  try { return !!key.trim() && typeof localStorage !== 'undefined' && localStorage.getItem(keyName(p)) === key.trim(); }
+  catch { return false; }
 };
 export const hasKey = (p: ProviderId): boolean => loadKey(p).length > 0;
 export const clearKeys = () => PROVIDER_IDS.forEach((p) => { store.remove(keyName(p)); store.remove(legacyKeyName(p)); });

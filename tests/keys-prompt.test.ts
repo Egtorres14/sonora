@@ -48,6 +48,20 @@ describe('Llaves de API del profesor', () => {
     clearKeys();
     expect(hasKey('gemini') || hasKey('openai') || hasKey('anthropic')).toBe(false);
   });
+  it('avisa de un fallo de almacenamiento y conserva la clave solo en la sesión', () => {
+    const storage = fakeStorage();
+    storage.setItem = () => { throw new DOMException('Quota exceeded', 'QuotaExceededError'); };
+    vi.stubGlobal('localStorage', storage);
+    expect(saveKey('gemini', 'session-only')).toBe(false);
+    expect(loadKey('gemini')).toBe('session-only');
+  });
+  it('al borrar no reaparece la clave de desarrollo', () => {
+    vi.stubGlobal('__SONORA_DEV_KEYS__', { gemini: 'dev-fixture-key' });
+    expect(loadKey('gemini')).toBe('dev-fixture-key');
+    expect(saveKey('gemini', '')).toBe(true);
+    expect(loadKey('gemini')).toBe('');
+    vi.stubGlobal('__SONORA_DEV_KEYS__', {});
+  });
 });
 
 const makeInput = (over: Partial<EvaluationInput> = {}): EvaluationInput => {

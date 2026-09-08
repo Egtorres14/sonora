@@ -1,34 +1,49 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, KeyRound, LoaderCircle, Save, Trash2 } from 'lucide-react';
-import { ENGINE_INFO, engineCost, loadKey, saveKey, type EngineId, type EngineSettings } from '../../services/engines';
+import { ENGINE_INFO, engineCost, loadKey, saveKey, isKeyPersisted, type EngineId, type EngineSettings } from '../../services/engines';
 import { modelsFor, findModel, PROVIDER_LABELS } from '../../services/llm/catalog';
 import type { ProviderId } from '../../services/llm/types';
 import { testKey } from '../../services/llm/keycheck';
 
-interface Props { settings: EngineSettings; onSave: (s: EngineSettings) => void; submissions: number }
+interface Props { settings: EngineSettings; onSave: (s: EngineSettings) => void; onChange: (s: EngineSettings) => boolean; submissions: number }
 const KEY_HELP: Record<ProviderId, string> = { gemini: 'aistudio.google.com/apikey', openai: 'platform.openai.com/api-keys', anthropic: 'console.anthropic.com/settings/keys', openrouter: 'openrouter.ai/settings/keys' };
 const KEY_PLACEHOLDER: Record<ProviderId, string> = { gemini: 'AIza…', openai: 'sk-…', anthropic: 'sk-ant-…', openrouter: 'sk-or-v1-…' };
 
-export default function EnginesView({ settings, onSave, submissions }: Props) {
+export default function EnginesView({ settings, onSave, onChange, submissions }: Props) {
   const [draft, setDraft] = useState<EngineSettings>(settings);
   const [keys, setKeys] = useState<Record<ProviderId, string>>({ gemini: loadKey('gemini'), openai: loadKey('openai'), anthropic: loadKey('anthropic'), openrouter: loadKey('openrouter') });
   const [show, setShow] = useState<Partial<Record<ProviderId, boolean>>>({});
   const [checking, setChecking] = useState<Partial<Record<ProviderId, boolean>>>({});
-  const abort = useRef<AbortController | null>(null);
+  const abort = useRef<Partial<Record<ProviderId, AbortController>>>({});
+  const draftRef = useRef(settings);
+  const [persisted, setPersisted] = useState<boolean | null>(null);
+  useEffect(() => () => Object.values(abort.current).forEach(c => c?.abort()), []);
+  const updateDraft = (change: (current: EngineSettings) => EngineSettings) => {
+    const next = change(draftRef.current);
+    draftRef.current = next; setDraft(next); setPersisted(onChange(next));
+  };
+  const invalidate = (p: ProviderId) => {
+    abort.current[p]?.abort(); delete abort.current[p];
+    setChecking(c => ({ ...c, [p]: false }));
+  };
   const perEval = engineCost(draft, 60, draft.runs);
   const perStudent = engineCost(draft, 60, 1);
 
   const check = async (p: ProviderId) => {
-    abort.current?.abort(); const controller = new AbortController(); abort.current = controller;
+    invalidate(p); const controller = new AbortController(); abort.current[p] = controller;
+    const model = draftRef.current.models[p];
+    saveKey(p, keys[p]);
     setChecking((c) => ({ ...c, [p]: true }));
-    const result = await testKey(p, keys[p], controller.signal);
+    const result = await testKey(p, keys[p], controller.signal, model);
     if (!controller.signal.aborted) {
-      setDraft((d) => ({ ...d, keyStatus: { ...d.keyStatus, [p]: { ok: result.ok, message: result.message, checkedAt: new Date().toISOString() } } }));
+      updateDraft((d) => ({ ...d, keyStatus: { ...d.keyStatus, [p]: { ok: result.ok, message: result.message, model, checkedAt: new Date().toISOString() } } }));
       setChecking((c) => ({ ...c, [p]: false }));
+      delete abort.current[p];
     }
   };
-  const setKey = (p: ProviderId, value: string) => { setKeys((k) => ({ ...k, [p]: value })); saveKey(p, value); setDraft((d) => { const keyStatus = { ...d.keyStatus }; delete keyStatus[p]; return { ...d, keyStatus }; }); };
-  const choose = (engine: EngineId) => setDraft((d) => ({ ...d, engine }));
+  const setKey = (p: ProviderId, value: string) => { invalidate(p); setKeys((k) => ({ ...k, [p]: value })); saveKey(p, value); updateDraft((d) => { const keyStatus = { ...d.keyStatus }; delete keyStatus[p]; return { ...d, keyStatus }; }); };
+  const setModel = (p: ProviderId, model: string) => { invalidate(p); updateDraft(d => { const keyStatus = { ...d.keyStatus }; delete keyStatus[p]; return { ...d, models: { ...d.models, [p]: model }, keyStatus }; }); };
+  const choose = (engine: EngineId) => updateDraft((d) => ({ ...d, engine }));
   const readyToUse = draft.engine === 'local' || !!keys[draft.engine].trim();
 
   return <div className="engines-view">
@@ -39,7 +54,8 @@ export default function EnginesView({ settings, onSave, submissions }: Props) {
         const active = draft.engine === info.id;
         const provider = info.id === 'local' ? null : info.id;
         const model = provider ? findModel(draft.models[provider]) : null;
-        const status = provider ? draft.keyStatus[provider] : undefined;
+        const checked = provider ? draft.keyStatus[provider] : undefined;
+        const status = provider && checked?.model === draft.models[provider] ? checked : undefined;
         return <div key={info.id} className={`engine-card ${active ? 'active' : ''}`}>
           <button type="button" role="radio" aria-checked={active} className="engine-choice" onClick={() => choose(info.id)}>
             <span className="radio-dot">{active && <i />}</span>
@@ -48,7 +64,7 @@ export default function EnginesView({ settings, onSave, submissions }: Props) {
           <p className="engine-summary">{info.summary}</p>
           <div className="engine-pros"><div><b>A favor</b>{info.pros}</div><div><b>En contra</b>{info.cons}</div></div>
           {provider && <div className="engine-config">
-            <label className="field">Modelo<select value={draft.models[provider]} onChange={(e) => setDraft((d) => ({ ...d, models: { ...d.models, [provider]: e.target.value } }))}>{modelsFor(provider).map((m) => <option key={m.id} value={m.id}>{m.label}{m.tag ? ` · ${m.tag.replace('-', ' ')}` : ''} · {m.free ? 'gratis' : `≈ ${engineCost({ ...draft, engine: provider, models: { ...draft.models, [provider]: m.id } }, 60, 1).toFixed(3)} $`}</option>)}</select></label>
+            <label className="field">Modelo<select aria-label={`Modelo de ${PROVIDER_LABELS[provider]}`} value={draft.models[provider]} onChange={(e) => setModel(provider, e.target.value)}>{modelsFor(provider).map((m) => <option key={m.id} value={m.id}>{m.label}{m.tag ? ` · ${m.tag.replace('-', ' ')}` : ''} · {m.free ? 'gratis' : `≈ ${engineCost({ ...draft, engine: provider, models: { ...draft.models, [provider]: m.id } }, 60, 1).toFixed(3)} $`}</option>)}</select></label>
             <label className="field">Clave de API de {PROVIDER_LABELS[provider]}
               <div className="key-row">
                 <input type={show[provider] ? 'text' : 'password'} autoComplete="off" spellCheck={false} value={keys[provider]} placeholder={KEY_PLACEHOLDER[provider]} aria-label={`Clave de API de ${PROVIDER_LABELS[provider]}`} onChange={(e) => setKey(provider, e.target.value)} />
@@ -56,8 +72,9 @@ export default function EnginesView({ settings, onSave, submissions }: Props) {
                 <button type="button" className="button secondary" disabled={!keys[provider].trim() || checking[provider]} onClick={() => check(provider)}>{checking[provider] ? <LoaderCircle className="spin" size={14} /> : <KeyRound size={14} />} Probar</button>
                 {keys[provider] && <button type="button" className="icon-button" aria-label={`Borrar clave de ${PROVIDER_LABELS[provider]}`} onClick={() => setKey(provider, '')}><Trash2 size={14} /></button>}
               </div>
-              <small>Crea la clave en {KEY_HELP[provider]}. {keys[provider].trim() ? 'Guardada en este navegador; se usará en cada consulta.' : 'Se guarda solo en este navegador.'}</small>
+              <small>Crea la clave en {KEY_HELP[provider]}. {keys[provider].trim() ? isKeyPersisted(provider, keys[provider]) ? 'Clave guardada en este navegador.' : 'Clave disponible solo en esta sesión: no está guardada en el navegador.' : 'Se guarda automáticamente en este navegador al escribirla.'}</small>
             </label>
+            {provider === 'gemini' && <p className="muted text-small">«Probar» genera una respuesta breve con el modelo seleccionado y puede consumir cuota. No envía tus audios.</p>}
             {status && <p className={`key-status ${status.ok ? 'ok' : 'bad'}`} role="status">{status.ok ? <Check size={13} /> : null}{status.message} · comprobada {new Date(status.checkedAt).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })}</p>}
           </div>}
         </div>;
@@ -67,11 +84,11 @@ export default function EnginesView({ settings, onSave, submissions }: Props) {
     <section className="panel engine-access">
       <div className="panel-heading"><div><span className="eyebrow">QUIÉN PUEDE PEDIRLA</span><h3>Uso y presupuesto.</h3></div></div>
       <div className="access-row"><div><b>Yo, al revisar</b><small>Siempre disponible con el motor elegido, desde «Ver asistentes».</small></div><span className="pill positive">Activo</span></div>
-      <div className="access-row"><div><b>Los estudiantes, al entregar</b><small>Reciben una lectura orientativa (qué se oye, fortalezas y mejoras), sin nota. Una consulta por entrega, con tu clave y tu presupuesto.</small></div><label className="switch"><input type="checkbox" checked={draft.studentAccess} disabled={draft.engine === 'local'} onChange={(e) => setDraft((d) => ({ ...d, studentAccess: e.target.checked }))} /><span aria-hidden="true" /><span className="visually-hidden">Permitir a los estudiantes pedir una lectura orientativa</span></label></div>
+      <div className="access-row"><div><b>Los estudiantes, al entregar</b><small>Reciben una lectura orientativa (qué se oye, fortalezas y mejoras), sin nota. Una consulta por entrega, con tu clave y tu presupuesto.</small></div><label className="switch"><input type="checkbox" checked={draft.studentAccess} disabled={draft.engine === 'local'} onChange={(e) => updateDraft((d) => ({ ...d, studentAccess: e.target.checked }))} /><span aria-hidden="true" /><span className="visually-hidden">Permitir a los estudiantes pedir una lectura orientativa</span></label></div>
       {draft.engine === 'local' && <p className="muted text-small">Con el modelo local los estudiantes ven las mediciones, pero no una lectura del modelo: sus sugerencias solo aparecen al profesor para no confundir una predicción débil con una corrección.</p>}
-      <div className="access-row"><div><b>Modo de análisis</b><small>Independiente: el modelo escucha sin pistas. Refuerzo: recibe las sugerencias del clasificador local y tus decisiones, y las confirma o refuta con evidencia.</small></div><select aria-label="Modo de análisis" value={draft.analysisMode} disabled={draft.engine === 'local'} onChange={(e) => setDraft((d) => ({ ...d, analysisMode: e.target.value as EngineSettings['analysisMode'] }))}><option value="independiente">Escucha independiente</option><option value="refuerzo">Refuerzo del modelo local</option></select></div>
-      <div className="access-row"><div><b>Redacción del feedback</b><small>Cómo funciona «Redactar borrador» en todas las revisiones. Con IA, el modelo redacta a partir de tus decisiones cerradas y las mediciones; nunca añade detecciones. Tú lo editas antes de publicar.</small></div><select aria-label="Redacción del feedback" value={draft.feedbackWriter} disabled={draft.engine === 'local'} onChange={(e) => setDraft((d) => ({ ...d, feedbackWriter: e.target.value as EngineSettings['feedbackWriter'] }))}><option value="local">Borrador local (sin IA)</option><option value="ia">Redactado por la IA elegida</option></select></div>
-      <div className="access-row"><div><b>Ejecuciones por consulta del profesor</b><small>Con 3 o 5 se decide por mayoría y se muestra el acuerdo. Cada ejecución se cobra.</small></div><select aria-label="Ejecuciones por consulta" value={draft.runs} disabled={draft.engine === 'local'} onChange={(e) => setDraft((d) => ({ ...d, runs: Number(e.target.value) as 1 | 3 | 5 }))}><option value={1}>1</option><option value={3}>3</option><option value={5}>5</option></select></div>
+      <div className="access-row"><div><b>Modo de análisis</b><small>Independiente: el modelo escucha sin pistas. Refuerzo: recibe las sugerencias del clasificador local y tus decisiones, y las confirma o refuta con evidencia.</small></div><select aria-label="Modo de análisis" value={draft.analysisMode} disabled={draft.engine === 'local'} onChange={(e) => updateDraft((d) => ({ ...d, analysisMode: e.target.value as EngineSettings['analysisMode'] }))}><option value="independiente">Escucha independiente</option><option value="refuerzo">Refuerzo del modelo local</option></select></div>
+      <div className="access-row"><div><b>Redacción del feedback</b><small>Cómo funciona «Redactar borrador» en todas las revisiones. Con IA, el modelo redacta a partir de tus decisiones cerradas y las mediciones; nunca añade detecciones. Tú lo editas antes de publicar.</small></div><select aria-label="Redacción del feedback" value={draft.feedbackWriter} disabled={draft.engine === 'local'} onChange={(e) => updateDraft((d) => ({ ...d, feedbackWriter: e.target.value as EngineSettings['feedbackWriter'] }))}><option value="local">Borrador local (sin IA)</option><option value="ia">Redactado por la IA elegida</option></select></div>
+      <div className="access-row"><div><b>Ejecuciones por consulta del profesor</b><small>Con 3 o 5 se decide por mayoría y se muestra el acuerdo. Cada ejecución se cobra.</small></div><select aria-label="Ejecuciones por consulta" value={draft.runs} disabled={draft.engine === 'local'} onChange={(e) => updateDraft((d) => ({ ...d, runs: Number(e.target.value) as 1 | 3 | 5 }))}><option value={1}>1</option><option value={3}>3</option><option value={5}>5</option></select></div>
       <dl className="cost-summary">
         <div><dt>Por consulta del profesor (60 s, {draft.runs} ejecución{draft.runs > 1 ? 'es' : ''})</dt><dd className="mono">{perEval.toFixed(3)} $</dd></div>
         <div><dt>Por lectura de estudiante</dt><dd className="mono">{draft.studentAccess ? `${perStudent.toFixed(3)} $` : '—'}</dd></div>
@@ -80,6 +97,7 @@ export default function EnginesView({ settings, onSave, submissions }: Props) {
     </section>
 
     <div className="toolbar engine-actions">
+      {persisted !== null && <span role="status" className={persisted ? 'muted text-small' : 'error-text'}>{persisted ? 'Selección, modelo y comprobaciones guardados automáticamente.' : 'El navegador impide guardar los ajustes; solo se conservan en esta sesión.'}</span>}
       {!readyToUse && <span className="muted text-small">Introduce y prueba la clave del motor elegido para poder usarlo.</span>}
       <button type="button" className="button primary" onClick={() => onSave(draft)}><Save size={15} /> Guardar motores</button>
     </div>

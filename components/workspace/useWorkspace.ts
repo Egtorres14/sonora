@@ -51,7 +51,11 @@ export default function useWorkspace() {
   const enter = (next: Session) => { saveSession(next); setSession(next); resetSelection(); setView('lab'); setError(''); setNotice(''); };
   const leave = () => { abort.current?.abort(); clearSession(); setSession(null); resetSelection(); setView('lab'); setError(''); setNotice(''); };
   const setRubric = (next: RubricConfig) => { try { setRubricState(saveRubric(next)); setNotice('Rúbrica guardada en este navegador. Las notas se recalculan con ella.'); } catch (e) { setError(e instanceof Error ? e.message : 'Rúbrica inválida.'); } };
-  const setEngines = (next: EngineSettings) => { saveEngineSettings(next); setEnginesState(next); setNotice(next.engine === 'local' ? 'Motores guardados: segunda opinión con el modelo local.' : `Motores guardados: ${next.engine} · ${next.models[next.engine]} · ${next.analysisMode === 'refuerzo' ? 'refuerzo del modelo local' : 'escucha independiente'} · feedback ${next.feedbackWriter === 'ia' ? 'redactado por IA' : 'local'}${next.studentAccess ? ' · lectura orientativa activa para estudiantes' : ''}.`); setView('lab'); };
+  const updateEngines = (next: EngineSettings) => { const saved = saveEngineSettings(next); setEnginesState(next); return saved; };
+  const setEngines = (next: EngineSettings) => {
+    if (!updateEngines(next)) { setError('El navegador impide guardar los motores. Los ajustes solo estarán disponibles durante esta sesión.'); return; }
+    setNotice(next.engine === 'local' ? 'Motores guardados: segunda opinión con el modelo local.' : `Motores guardados: ${next.engine} · ${next.models[next.engine]} · ${next.analysisMode === 'refuerzo' ? 'refuerzo del modelo local' : 'escucha independiente'} · feedback ${next.feedbackWriter === 'ia' ? 'redactado por IA' : 'local'}${next.studentAccess ? ' · lectura orientativa activa para estudiantes' : ''}.`); setView('lab');
+  };
   const restoreRubric = () => { setRubricState(resetRubric()); setNotice('Rúbrica restablecida a la original.'); };
 
   const change = (id: string, patch: Partial<ReviewRecord>) => {
@@ -171,5 +175,5 @@ export default function useWorkspace() {
     catch { setError('No se pudo cargar la referencia.'); }
   };
   const saveModel = async (next: LocalModel) => { if (!isTeacher) return; await library.saveModel(next); setModel(next); setNotice('Modelo y resultados de validación guardados en este navegador.'); };
-  return { session, enter, leave, isTeacher, rubric, setRubric, restoreRubric, engines, setEngines, records, allRecords, model, view, setView, selected: records.find(r => r.id === selectedId), analyzed, audioUrl, referenceUrl, referenceId, reference, busy, stage, error, notice, saving, setError, setNotice, change, select, files, demo, remove, importFile, importCorpus, saveModel, cancel: () => abort.current?.abort() };
+  return { session, enter, leave, isTeacher, rubric, setRubric, restoreRubric, engines, setEngines, updateEngines, records, allRecords, model, view, setView, selected: records.find(r => r.id === selectedId), analyzed, audioUrl, referenceUrl, referenceId, reference, busy, stage, error, notice, saving, setError, setNotice, change, select, files, demo, remove, importFile, importCorpus, saveModel, cancel: () => abort.current?.abort() };
 }
