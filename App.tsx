@@ -1,13 +1,15 @@
-import { lazy, Suspense } from 'react';
-import { Activity, ArrowUpRight, BookOpen, ChevronRight, CircleHelp, Database, FolderCheck, Layers3, LoaderCircle, LockKeyhole, LogOut, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { lazy, Suspense, useState } from 'react';
+import { Activity, ArrowUpRight, BookOpen, ChevronRight, CircleHelp, Database, FolderCheck, Headphones, Layers3, LoaderCircle, LockKeyhole, LogOut, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import useWorkspace, { type WorkspaceView } from './components/workspace/useWorkspace';
 import UploadArea from './components/workspace/UploadArea';
 import AnalysisView from './components/workspace/AnalysisView';
 import LibraryView from './components/workspace/LibraryView';
 import RoleGate from './components/RoleGate';
+import GuideView, { type GuideRole } from './components/GuideView';
 const LearningView = lazy(() => import('./components/workspace/LearningView'));
 const RubricEditor = lazy(() => import('./components/workspace/RubricEditor'));
 const EnginesView = lazy(() => import('./components/workspace/EnginesView'));
+const CorpusView = lazy(() => import('./components/workspace/CorpusView'));
 
 /** Marca animada: cinco barras que respiran (se detiene con «reducir movimiento»). */
 const BrandBars = () => <span className="brand-bars" aria-hidden="true">{[0, 1, 2, 3, 4].map(i => <i key={i} style={{ animationDelay: `${i * 0.18}s` }} />)}</span>;
@@ -18,15 +20,19 @@ const TEACHER_NAV = [
   { id: 'rubric', label: 'Rúbrica', icon: SlidersHorizontal, number: '03', eyebrow: 'CRITERIOS & PUNTOS' },
   { id: 'engines', label: 'Motores de IA', icon: Sparkles, number: '04', eyebrow: 'SEGUNDA OPINIÓN & COSTES' },
   { id: 'learning', label: 'Modelo local', icon: Layers3, number: '05', eyebrow: 'DATOS & VALIDACIÓN' },
+  { id: 'corpus', label: 'Muestras', icon: Headphones, number: '06', eyebrow: 'CORPUS & ESCUCHA' },
+  { id: 'guide', label: 'Guía de uso', icon: BookOpen, number: '07', eyebrow: 'TUTORIAL' },
 ] as const;
 const STUDENT_NAV = [
   { id: 'lab', label: 'Entregar', icon: Activity, number: '01', eyebrow: 'TU PROYECTO' },
   { id: 'library', label: 'Mis entregas', icon: FolderCheck, number: '02', eyebrow: 'ENTREGAS & CALIFICACIÓN' },
+  { id: 'guide', label: 'Guía de uso', icon: BookOpen, number: '03', eyebrow: 'TUTORIAL' },
 ] as const;
 
 export default function App() {
   const w = useWorkspace();
-  if (!w.session) return <RoleGate onEnter={w.enter} />;
+  const [preGuide, setPreGuide] = useState<GuideRole | null>(null);
+  if (!w.session) return preGuide ? <div className="guide-standalone"><GuideView role={preGuide} onRole={setPreGuide} onBack={() => setPreGuide(null)} backLabel="Volver a la entrada" /></div> : <RoleGate onEnter={w.enter} onGuide={() => setPreGuide('student')} />;
   const teacher = w.isTeacher;
   const nav = teacher ? TEACHER_NAV : STUDENT_NAV;
   const current = nav.find(n => n.id === w.view) ?? nav[0];
@@ -37,7 +43,7 @@ export default function App() {
       : <div className="sidebar-lesson"><div className="lesson-icon"><FolderCheck size={19} /></div><span className="eyebrow">TU ENTREGA</span><h3>Sube, describe,<br />entrega.</h3><p>Tu profesor verá tu nombre, tu sinopsis y las mediciones del archivo.</p><button className="text-button" onClick={() => w.setView('library')}>Ver mis entregas <ArrowUpRight size={15} /></button></div>}
     <div className="sidebar-bottom"><span className="status-dot" /><div><b>Tu audio se queda aquí</b><small>Procesamiento y almacenamiento local</small></div><LockKeyhole size={16} /></div></aside>
     <div className="workspace-shell"><header className="workspace-header"><div className="breadcrumb"><span>{teacher ? 'Profesor' : 'Estudiante'}</span><ChevronRight size={13} /><b>{current.label}</b></div><div className="header-right"><span className="local-badge"><span className="status-dot" />{teacher ? 'Motor local activo' : studentName}</span><span className="header-divider" /><span className="profile-avatar" title={teacher ? 'Profesor' : studentName}>{teacher ? 'P' : studentName.trim().charAt(0).toUpperCase() || 'E'}</span><button className="text-button" onClick={w.leave} aria-label="Salir y volver al menú de entrada"><LogOut size={14} /> Salir</button></div></header><main id="main-content" className="workspace-content">
-      <div className="workspace-topline"><span className="eyebrow">{current.eyebrow}</span><span className="text-small muted">{w.saving ? 'Guardando cambios…' : 'Espacio local'} <span className="topline-dot">·</span> v1.2</span></div>
+      <div className="workspace-topline"><span className="eyebrow">{current.eyebrow}</span><span className="text-small muted">{w.saving ? 'Guardando cambios…' : 'Espacio local'} <span className="topline-dot">·</span> v1.3</span></div>
       {w.error && <div className="alert-banner" role="alert"><div><b>No se ha podido completar una operación</b><p>{w.error}</p></div><button className="icon-button" aria-label="Cerrar error" onClick={() => w.setError('')}><X size={17} /></button></div>}
       {w.notice && <div className="notice-banner" role="status"><span>{w.notice}</span><button className="icon-button" aria-label="Cerrar aviso" onClick={() => w.setNotice('')}><X size={15} /></button></div>}
       {w.busy && <div className="analysis-progress" role="status"><LoaderCircle className="spin" size={21} /><div><b>Trabajando en tu navegador</b><p>{w.stage}</p></div><button className="text-button" onClick={w.cancel}>Cancelar</button></div>}
@@ -45,6 +51,8 @@ export default function App() {
       {w.view === 'library' && <LibraryView records={w.records} busy={w.busy} rubric={w.rubric} teacher={teacher} student={studentName} onSelect={w.select} onRemove={w.remove} onFiles={w.files} onDemo={w.demo} onImport={w.importFile} />}
       {w.view === 'engines' && teacher && <Suspense fallback={<div className="empty-table">Cargando motores…</div>}><EnginesView settings={w.engines} onSave={w.setEngines} submissions={w.allRecords.filter(r => r.student).length} /></Suspense>}
       {w.view === 'rubric' && teacher && <Suspense fallback={<div className="empty-table">Cargando rúbrica…</div>}><RubricEditor rubric={w.rubric} onSave={w.setRubric} onReset={w.restoreRubric} /></Suspense>}
+      {w.view === 'corpus' && teacher && <Suspense fallback={<div className="empty-table">Cargando muestras…</div>}><CorpusView libraryIds={new Set(w.allRecords.map(r => r.id))} model={w.model} busy={w.busy} onImport={w.importCorpus} /></Suspense>}
+      {w.view === 'guide' && <GuideView role={teacher ? 'teacher' : 'student'} />}
       {w.view === 'learning' && teacher && <Suspense fallback={<div className="empty-table">Cargando laboratorio de aprendizaje…</div>}><LearningView records={w.allRecords} model={w.model} onModel={w.saveModel} onLibrary={() => w.setView('library')} /></Suspense>}
       <footer className="workspace-footer"><span>SONORA <span>Hecho para escuchar con criterio.</span></span>{teacher && <button className="text-button" onClick={() => w.setView('learning')}><CircleHelp size={14} /> Sobre el método</button>}</footer>
     </main></div>

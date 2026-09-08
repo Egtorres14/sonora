@@ -11,6 +11,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { loadLame } from './lame';
+import { resampleMonoLinear } from './dsp-effects';
 import decode from 'audio-decode';
 import { encodeWav16, decodePcm } from '../../services/audio/wav';
 import { extractFeatures } from '../../services/audio/features';
@@ -24,12 +26,12 @@ import {
 } from './dsp-effects';
 
 interface SourceEntry { id: string; file: string; category: string; description: string; license: string; attribution: string; sourceUrl: string }
-interface Args { sources: string; out: string; clip: number; seed: number; wav: 'all' | 'none'; synthetic: boolean; maxSources: number; wavMax: number }
+interface Args { sources: string; out: string; clip: number; seed: number; wav: 'all' | 'none'; synthetic: boolean; maxSources: number; wavMax: number; mp3: boolean; mp3Seconds: number; perTool: number }
 
 const parseArgs = (): Args => {
   const a = process.argv.slice(2);
   const get = (k: string, d: string) => { const i = a.indexOf(`--${k}`); return i >= 0 && a[i + 1] ? a[i + 1] : d; };
-  return { sources: get('sources', 'corpus/sources'), out: get('out', 'corpus'), clip: Number(get('clip', '20')), seed: Number(get('seed', '1')), wav: get('wav', 'all') as Args['wav'], synthetic: a.includes('--synthetic'), maxSources: Number(get('max', '9999')), wavMax: Number(get('wav-max', '15')) };
+  return { sources: get('sources', 'corpus/sources'), out: get('out', 'corpus'), clip: Number(get('clip', '20')), seed: Number(get('seed', '1')), wav: get('wav', 'all') as Args['wav'], synthetic: a.includes('--synthetic'), maxSources: Number(get('max', '9999')), wavMax: Number(get('wav-max', '15')), mp3: a.includes('--mp3'), mp3Seconds: Number(get('mp3-seconds', '12')), perTool: Number(get('per-tool', '2')) };
 };
 
 const fmt = (sec: number) => `${Math.floor(sec / 60)}:${(sec % 60).toFixed(1).padStart(4, '0')}`;
@@ -122,8 +124,8 @@ const opDistractor: Op = (x, fs, rng, v) => {
 
 const OPS: Record<ToolId, Op> = { pitch_shift: opPitch, time_stretch: opStretch, reversa: opReverse, filtros: opFilter, loops: opLoop };
 
-/** Plan de variantes por fuente: original, 5 individuales, 3 combinaciones, 3 distractores. */
-const planVariants = (source: Float32Array, fs: number, rng: Rng): Variant[] => {
+/** Plan de variantes por fuente: original, `perTool` por herramienta, 4 combinaciones, 3 distractores. */
+const planVariants = (source: Float32Array, fs: number, rng: Rng, perTool = 2): Variant[] => {
   const make = (name: string, chain: (Op | 'none')[]): Variant => {
     const b = blank();
     const v: Variant = { name, audio: source, labels: b.labels, evidence: b.evidence, extra: 'absent', overprocessing: 'none', chain: [] };
@@ -134,9 +136,9 @@ const planVariants = (source: Float32Array, fs: number, rng: Rng): Variant[] => 
     return v;
   };
   const variants: Variant[] = [make('original', ['none'])];
-  for (const t of TOOLS) variants.push(make(t, [OPS[t]]));
+  for (let k = 0; k < perTool; k++) for (const t of TOOLS) variants.push(make(k === 0 ? t : `${t}-${k + 1}`, [OPS[t]]));
   const combos: ToolId[][] = [];
-  while (combos.length < 3) {
+  while (combos.length < 4) {
     const size = pick(rng, [2, 2, 3]);
     const set = new Set<ToolId>();
     while (set.size < size) set.add(pick(rng, TOOLS));
@@ -195,21 +197,43 @@ const main = async () => {
   console.log(`Fuentes cargadas: ${sources.length}`);
 
   const records: ReviewRecord[] = [];
-  const index: { file: string; id: string; sourceGroup: string; chain: string[]; labels: Labels; seconds: number }[] = [];
+  const seenIds = new Set<string>();
+  const index: { file: string; id: string; sourceGroup: string; chain: string[]; labels: Labels; seconds: number; audio?: string; variant: string }[] = [];
+  const sourcesOut: { id: string; category: string; description: string; license: string; attribution: string; sourceUrl: string; sampleRate: number; seconds: number }[] = [];
+  const outMp3 = path.join(args.out, 'audio');
+  if (args.mp3) fs.mkdirSync(outMp3, { recursive: true });
+  const encodeMp3 = (mono: Float32Array, sr: number): Buffer => {
+    const target = 16000;
+    const x = sr === target ? mono : resampleMonoLinear(mono, sr, target);
+    const n = Math.min(x.length, Math.round(args.mp3Seconds * target));
+    const pcm = new Int16Array(n);
+    for (let i = 0; i < n; i++) { const fade = Math.min(1, (n - i) / (0.05 * target)); pcm[i] = Math.max(-32768, Math.min(32767, Math.round(x[i] * fade * 32767))); }
+    const enc = new (loadLame().Mp3Encoder)(1, target, 48);
+    const chunks: Buffer[] = [];
+    for (let i = 0; i < n; i += 1152) { const c = enc.encodeBuffer(pcm.subarray(i, i + 1152)); if (c.length) chunks.push(Buffer.from(c)); }
+    const end = enc.flush(); if (end.length) chunks.push(Buffer.from(end));
+    return Buffer.concat(chunks);
+  };
   const now = new Date().toISOString();
   let sourceIndex = 0;
   for (const { entry, mono, fs: sr } of sources) {
     const writeWav = args.wav === 'all' && sourceIndex++ < args.wavMax;
     let source: Float32Array;
     try { source = normalizePeak(trimTo(mono, sr, args.clip), -3); } catch (e) { console.warn(`  ✗ ${entry.id}: ${(e as Error).message}`); continue; }
+    sourcesOut.push({ id: entry.id, category: entry.category, description: entry.description, license: entry.license, attribution: entry.attribution, sourceUrl: entry.sourceUrl, sampleRate: sr, seconds: +(source.length / sr).toFixed(2) });
     const rng = mulberry32(hashSeed(entry.id) ^ args.seed);
-    const variants = planVariants(source, sr, rng);
+    const variants = planVariants(source, sr, rng, args.perTool);
     for (const v of variants) {
       const wav = encodeWav16([v.audio], sr);
       const bytes = Buffer.from(wav);
       const id = createHash('sha256').update(bytes).digest('hex');
       const name = `${entry.id}__${v.name}.wav`;
+      // Dos ajustes aleatorios pueden coincidir (mismo semitono, mismo factor): el audio sería idéntico y el id también.
+      if (seenIds.has(id)) { console.log(`    · ${v.name} duplica otra variante, se omite`); continue; }
+      seenIds.add(id);
       if (writeWav) fs.writeFileSync(path.join(outAudio, name), bytes);
+      let audioRel: string | undefined;
+      if (args.mp3 && (v.name === 'original' || TOOLS.includes(v.name as ToolId))) { const mp3Name = `${entry.id}__${v.name}.mp3`; fs.writeFileSync(path.join(outMp3, mp3Name), encodeMp3(v.audio, sr)); audioRel = `audio/${mp3Name}`; }
       const decoded = decodePcm(wav)!;
       const features = extractFeatures(decoded, { fileName: name, sizeBytes: bytes.length });
       const rec = createReview(id, name, features, args.synthetic ? 'synthetic' : 'real');
@@ -223,7 +247,7 @@ const main = async () => {
       rec.context = `Corpus generado por scripts/corpus/build-corpus.ts (semilla ${args.seed}). Cadena de proceso: ${v.chain.length ? v.chain.join(' → ') : 'ninguna (original recortado)'}. Etiquetas exactas por construcción.`;
       rec.notes = `Fuente: ${entry.description}. Licencia: ${entry.license}. Atribución: ${entry.attribution}. Origen: ${entry.sourceUrl || 'sintética'}.`;
       records.push(rec);
-      index.push({ file: name, id, sourceGroup: entry.id, chain: v.chain, labels: v.labels, seconds: +(v.audio.length / sr).toFixed(2) });
+      index.push({ file: name, id, sourceGroup: entry.id, chain: v.chain, labels: v.labels, seconds: +(v.audio.length / sr).toFixed(2), audio: audioRel, variant: v.name });
     }
     console.log(`  ✓ ${entry.id}: ${variants.length} variantes (${(source.length / sr).toFixed(1)} s, ${sr} Hz)`);
   }
@@ -233,7 +257,7 @@ const main = async () => {
   const text = JSON.stringify(dataset, jsonSafe, 1);
   DatasetSchema.parse(JSON.parse(text)); // garantiza que Biblioteca lo aceptará
   fs.writeFileSync(path.join(args.out, 'coleccion.json'), text);
-  fs.writeFileSync(path.join(args.out, 'indice.json'), JSON.stringify(index, null, 1));
+  fs.writeFileSync(path.join(args.out, 'indice.json'), JSON.stringify({ version: 1, generatedAt: now, seed: args.seed, clipSeconds: args.clip, mp3Seconds: args.mp3 ? args.mp3Seconds : 0, sources: sourcesOut, records: index }, null, 1));
 
   const counts = TOOLS.map((t) => `${t}: ${records.filter((r) => r.labels[t] === 'present').length} presentes / ${records.filter((r) => r.labels[t] === 'absent').length} ausentes`).join('\n  ');
   console.log(`\nRegistros: ${records.length} en ${sources.length} grupos de origen\n  ${counts}\nJSON: ${path.join(args.out, 'coleccion.json')} (${(text.length / 1e6).toFixed(1)} MB)`);

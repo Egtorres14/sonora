@@ -206,3 +206,42 @@ test('evidencias con tiempos y motores de IA', async ({ page }) => {
   await page.getByRole('button', { name: 'Guardar motores' }).click();
   await expect(page.locator('.notice-banner')).toContainText('gemini');
 });
+
+test('guía de uso antes de entrar y desde cada rol', async ({ page }) => {
+  await page.getByRole('button', { name: 'Salir' }).click();
+  await page.getByRole('button', { name: /Cómo se usa/ }).click();
+  await expect(page.getByRole('heading', { name: /Entregar bien/ })).toBeVisible();
+  await page.getByRole('group', { name: 'Guía para' }).getByRole('button', { name: 'Profesor' }).click();
+  await expect(page.getByRole('heading', { name: /Del archivo a la nota/ })).toBeVisible();
+  await expect(page.locator('.guide-steps li')).toHaveCount(9);
+  await page.getByRole('button', { name: 'Volver a la entrada' }).click();
+  await expect(page.getByRole('heading', { name: '¿Quién entra?' })).toBeVisible();
+  await page.getByLabel('Nombre y apellidos').fill('Ana Ruiz');
+  await page.getByRole('button', { name: 'Entrar como estudiante' }).click();
+  await page.getByRole('button', { name: /Guía de uso/ }).click();
+  await expect(page.locator('.guide-steps li')).toHaveCount(7);
+});
+
+test('muestras del corpus: escucha, importación y modelo publicado', async ({ page }) => {
+  await page.getByRole('button', { name: /Muestras/ }).click();
+  await expect(page.getByRole('heading', { name: /grabaciones · .* muestras etiquetadas/ })).toBeVisible();
+  const first = page.locator('.corpus-source').first();
+  await expect(first.locator('audio')).toHaveCount(6);
+  await first.getByRole('button', { name: /Ver las \d+ variantes/ }).click();
+  await expect(first.locator('table tbody tr').first()).toBeVisible();
+  expect(await first.locator('table tbody tr').count()).toBeGreaterThanOrEqual(17); // 18 variantes salvo que dos ajustes coincidan
+  await expect(page.getByRole('heading', { name: /Entrenado el/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Importar corpus a la biblioteca' }).click();
+  await expect(page.locator('.notice-banner')).toContainText(/Corpus importado: \d+ registros nuevos .* modelo entrenado cargado/, { timeout: 60_000 });
+  await expect(page.getByRole('button', { name: 'Corpus importado' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Modelo cargado' })).toBeDisabled();
+  await page.getByRole('button', { name: /Modelo local/ }).click();
+  await expect(page.getByRole('heading', { name: 'Un primer modelo, medible.' })).toBeVisible();
+  await expect(page.locator('.notice')).toHaveCount(0);
+  // El borrador de feedback se redacta sin IA externa
+  await page.getByRole('button', { name: /Laboratorio/ }).click();
+  await page.getByRole('button', { name: /Edición con clics/ }).click();
+  await expect(page.getByRole('heading', { name: 'campana_cortes.wav', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Redactar borrador' }).click();
+  await expect(page.getByLabel('Feedback para el estudiante')).toHaveValue(/clics|Quedan por revisar/);
+});

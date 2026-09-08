@@ -333,3 +333,13 @@ export const synthSource = (kind: 'bell' | 'pluck' | 'vowel' | 'texture' | 'perc
   }
   return normalizePeak(y, -3);
 };
+
+/** Remuestreo a otra frecuencia (filtro paso bajo previo si decima). Para extractos de escucha, no para medir. */
+export const resampleMonoLinear = (x: Float32Array, fromRate: number, toRate: number): Float32Array => {
+  const ratio = fromRate / toRate;
+  const src = ratio > 1 ? lowpass(x, fromRate, 0.45 * toRate, 0.707) : x;
+  const n = Math.max(1, Math.round(x.length / ratio));
+  const y = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const pos = i * ratio; const j = Math.floor(pos), f = pos - j; y[i] = (src[j] ?? 0) * (1 - f) + (src[j + 1] ?? 0) * f; }
+  return y;
+};

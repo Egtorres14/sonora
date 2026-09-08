@@ -51,13 +51,33 @@ export const trainingReadiness = (samples: TrainingSample[]): Readiness[] => eff
   return { effect, eligible: !!validFolds, reason: validFolds ? 'Lista para una validación inicial; todavía no demuestra robustez.' : `Necesita 12 muestras reales, 6 orígenes y presencia/ausencia en al menos 3 orígenes por clase. Asigna el grupo de origen.`, labeledRealSamples: rows.length, positiveSamples: positives.length, negativeSamples: negatives.length, distinctGroups, positiveGroups, negativeGroups };
 });
 
-const fit = (rows: TrainingSample[], effect: EffectId) => {
-  const classifier = new RandomForestClassifier({ seed: 42, maxFeatures: 0.7, replacement: false, nEstimators: 40, useSampleBagging: true, noOOB: true, treeOptions: { maxDepth: 8, minNumSamples: 2 } });
-  classifier.train(rows.map(s => describeAudio(s.features)), rows.map(s => s.labels[effect] === 'present' ? 1 : 0));
+/** Hiperparámetros del bosque. Los valores por defecto se eligieron midiendo en el corpus (scripts/corpus/tune.ts). */
+export interface ForestOptions { nEstimators?: number; maxDepth?: number; maxFeatures?: number; minNumSamples?: number }
+export const DEFAULT_FOREST: Required<ForestOptions> = { nEstimators: 40, maxDepth: 8, maxFeatures: 0.7, minNumSamples: 2 };
+
+const fit = (rows: TrainingSample[], effect: EffectId, options: ForestOptions = {}) => {
+  const o = { ...DEFAULT_FOREST, ...options };
+  const classifier = new RandomForestClassifier({ seed: 42, maxFeatures: o.maxFeatures, replacement: false, nEstimators: o.nEstimators, useSampleBagging: true, noOOB: true, treeOptions: { maxDepth: o.maxDepth, minNumSamples: o.minNumSamples } });
+  const balanced = balanceClasses(rows, effect);
+  classifier.train(balanced.map(s => describeAudio(s.features)), balanced.map(s => s.labels[effect] === 'present' ? 1 : 0));
   return classifier;
 };
 
-export const trainLocalModel = (samples: TrainingSample[]): LocalModel => {
+/**
+ * Equilibra las clases repitiendo de forma determinista las muestras de la clase minoritaria hasta
+ * igualar a la mayoritaria. Sin esto, con 1 positivo por cada 3–4 negativos el bosque aprende a decir
+ * «ausente» y la sensibilidad se hunde (medido en el corpus: reversa 15 % de sensibilidad).
+ */
+const balanceClasses = (rows: TrainingSample[], effect: EffectId): TrainingSample[] => {
+  const positive = rows.filter(s => s.labels[effect] === 'present'), negative = rows.filter(s => s.labels[effect] !== 'present');
+  if (!positive.length || !negative.length) return rows;
+  const [minor, major] = positive.length <= negative.length ? [positive, negative] : [negative, positive];
+  const out = [...rows];
+  for (let i = minor.length; i < major.length; i++) out.push(minor[i % minor.length]);
+  return out;
+};
+
+export const trainLocalModel = (samples: TrainingSample[], options: ForestOptions = {}): LocalModel => {
   validateSamples(samples);
   const ready = trainingReadiness(samples).filter(r => r.eligible);
   if (!ready.length) throw new Error('Todavía no hay suficientes muestras reales etiquetadas y agrupadas. Consulta los requisitos por herramienta.');
@@ -66,13 +86,13 @@ export const trainLocalModel = (samples: TrainingSample[]): LocalModel => {
     const rows = labeled(samples, r.effect);
     const confusion: ConfusionCounts = { truePositive: 0, trueNegative: 0, falsePositive: 0, falseNegative: 0 };
     for (const fold of createGroupDisjointFolds(samples, r.effect)) {
-      const classifier = fit(fold.trainIndices.map(i => samples[i]), r.effect);
+      const classifier = fit(fold.trainIndices.map(i => samples[i]), r.effect, options);
       const testRows = fold.testIndices.map(i => samples[i]);
       const predicted = classifier.predict(testRows.map(s => describeAudio(s.features)));
       testRows.forEach((s, i) => { const positive = s.labels[r.effect] === 'present'; confusion[positive ? predicted[i] === 1 ? 'truePositive' : 'falseNegative' : predicted[i] === 1 ? 'falsePositive' : 'trueNegative']++; });
     }
     const { truePositive: tp, trueNegative: tn, falsePositive: fp, falseNegative: fn } = confusion;
-    model.effects[r.effect] = { effect: r.effect, classifier: fit(rows, r.effect).toJSON(), sampleIds: rows.map(s => s.id), groupIds: [...new Set(rows.map(group))], sampleCount: rows.length, groupCount: r.distinctGroups, positiveSamples: r.positiveSamples, negativeSamples: r.negativeSamples,
+    model.effects[r.effect] = { effect: r.effect, classifier: fit(rows, r.effect, options).toJSON(), sampleIds: rows.map(s => s.id), groupIds: [...new Set(rows.map(group))], sampleCount: rows.length, groupCount: r.distinctGroups, positiveSamples: r.positiveSamples, negativeSamples: r.negativeSamples,
       validation: { confusion, precision: tp + fp ? tp / (tp + fp) : null, recall: tp / (tp + fn), balancedAccuracy: (tp / (tp + fn) + tn / (tn + fp)) / 2, evaluatedSamples: rows.length, evaluatedGroups: r.distinctGroups, folds: 3 },
     };
   }

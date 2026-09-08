@@ -17,12 +17,14 @@ Colección de muestras con **etiquetas exactas por construcción**: cada archivo
 
 ```sh
 npm run corpus:fetch    # descarga las fuentes de sources/catalog.json y escribe manifest.json
-npm run corpus:build    # genera audio/, coleccion.json e indice.json (≈ 12 variantes por fuente)
+npm run corpus:build    # genera public/corpus/{coleccion,indice}.json y audio/*.mp3 (18 variantes por fuente)
+npm run corpus:model    # entrena el modelo con la colección (+ contribuciones) y escribe public/corpus/modelo.json
+npm run corpus:tune     # compara hiperparámetros del bosque con la misma validación por grupos
 ```
 
-Opciones de `scripts/corpus/build-corpus.ts`: `--clip 20` (segundos por variante), `--seed 1` (reproducibilidad), `--wav none` (solo JSON), `--max N` (primeras N fuentes).
+Opciones de `scripts/corpus/build-corpus.ts`: `--clip 20` (segundos por variante), `--seed 1` (reproducibilidad), `--wav none|all` (WAV completos), `--mp3` y `--mp3-seconds 12` (extractos de escucha), `--per-tool 2` (variantes por herramienta), `--max N` (primeras N fuentes).
 
-Por cada fuente (= un `sourceGroup`): original recortado, una variante por herramienta, tres combinaciones de 2–3 herramientas (a veces con un distractor) y tres variantes solo con distractores. Los niveles de salida se varían (−1 a −9 dBFS) para que el nivel no sea una pista. `extra` se marca "presente" cuando hay reverb, delay o trémolo; `sobreprocesamiento` se marca leve/moderado en transposiciones de una octava, estiramientos extremos o saturación.
+Por cada fuente (= un `sourceGroup`): original recortado, dos variantes por herramienta con ajustes distintos, cuatro combinaciones de 2–3 herramientas (a veces con un distractor) y tres variantes solo con distractores. Los niveles de salida se varían (−1 a −9 dBFS) para que el nivel no sea una pista. `extra` se marca "presente" cuando hay reverb, delay o trémolo; `sobreprocesamiento` se marca leve/moderado en transposiciones de una octava, estiramientos extremos o saturación.
 
 ## Qué es y qué no es
 

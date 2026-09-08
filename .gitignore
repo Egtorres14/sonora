@@ -25,6 +25,7 @@ dist-ssr
 
 # Corpus de entrenamiento (audio pesado; el JSON sí se versiona)
 corpus/audio/
+public/corpus/audio/*.wav
 corpus/sources/files/
 corpus-sintetico/
 # Artefactos de pruebas

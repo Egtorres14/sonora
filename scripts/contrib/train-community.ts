@@ -4,7 +4,9 @@
  *   corpus-out/community-model.json   modelo serializado (mismo formato que guarda la app)
  *   corpus-out/VALIDACION-CI.md       tabla de validación por grupos de origen
  *
- *   npx tsx scripts/contrib/train-community.ts corpus/coleccion.json corpus/contributions/*.json
+ *   npx tsx scripts/contrib/train-community.ts public/corpus/coleccion.json corpus/contributions/*.json [--out public/corpus/modelo.json]
+ *
+ * Con --out escribe además el modelo en esa ruta (la app lo descarga desde la vista Muestras).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -12,7 +14,10 @@ import { DatasetSchema } from '../../services/library-schema';
 import { trainingReadiness, trainLocalModel } from '../../services/learning/model';
 import type { TrainingSample, EffectId } from '../../services/learning/types';
 
-const files = process.argv.slice(2).filter((f) => fs.existsSync(f));
+const argv = process.argv.slice(2);
+const outIdx = argv.indexOf('--out');
+const outFile = outIdx >= 0 ? argv[outIdx + 1] : '';
+const files = argv.filter((f, i) => i !== outIdx && i !== outIdx + 1 && fs.existsSync(f));
 if (files.length === 0) throw new Error('No hay colecciones que cargar.');
 const seen = new Set<string>();
 const samples: TrainingSample[] = [];
@@ -55,5 +60,6 @@ Validación en 3 particiones separadas por grabación de origen (ningún origen 
 
 fs.mkdirSync('corpus-out', { recursive: true });
 fs.writeFileSync(path.join('corpus-out', 'community-model.json'), JSON.stringify(model));
+if (outFile) { fs.mkdirSync(path.dirname(outFile), { recursive: true }); fs.writeFileSync(outFile, JSON.stringify(model)); console.log(`Modelo escrito en ${outFile}`); }
 fs.writeFileSync(path.join('corpus-out', 'VALIDACION-CI.md'), md);
 console.log(md);

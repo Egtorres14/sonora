@@ -57,9 +57,9 @@ La aplicación se entrega **sin un modelo entrenado con trabajos reales**. Para 
 
 El JSON de colección contiene métricas y etiquetas, **no los archivos de audio ni el modelo**. Guarda los originales por separado y exporta periódicamente la colección. Puedes volver a cargar un original después de importar: su huella lo vincula al registro conservando las correcciones. Limpiar los datos del navegador elimina la biblioteca local; no hay servidor, sincronización ni copia en la nube.
 
-En una muestra, abre **Ver asistentes → Consultar una IA externa** y añade tu clave si deseas una segunda opinión. Solo el botón **Pedir segunda opinión** inicia la consulta. Gemini/OpenAI reciben audio preparado; Claude recibe imágenes y métricas. También se envían nombre, sinopsis y contexto. La interfaz explica los datos y el coste orientativo antes de consultar. Las claves no se incorporan desde `.env` y recordarlas está desactivado por defecto.
+La clave se guarda desde **Motores de IA** (una por proveedor, solo en ese navegador, sin `.env`) y el botón **Probar** la verifica; en Gemini también confirma que el proyecto tiene saldo. En una muestra, abre **Ver asistentes** y pulsa **Pedir segunda opinión** para iniciar la consulta. Gemini/OpenAI reciben audio preparado; Claude recibe imágenes y métricas. También se envían nombre, sinopsis y contexto. La interfaz explica los datos y el coste orientativo antes de consultar. El prompt (`services/llm/prompt.ts`) explica al modelo la rúbrica activa, un protocolo de escucha, cómo calibrar la confianza y el contrato de cada campo, y cambia de tono según lea el profesor (revisión) o el estudiante (lectura orientativa sin nota).
 
-Los adaptadores externos se conservan, pero no se han probado llamadas facturables con credenciales reales en esta validación. Una instalación pública o compartida necesitaría su propio backend de autenticación y gestión de claves.
+El adaptador de Gemini se ha probado con credenciales reales (audio sintético con reversa, modos profesor y estudiante); OpenAI y Anthropic conservan sus adaptadores sin llamadas facturables en esta validación. Una instalación pública o compartida necesitaría su propio backend de autenticación y gestión de claves.
 
 ## Límites de las mediciones y del aprendizaje
 
@@ -67,11 +67,17 @@ WAV/AIFF PCM se leen en su frecuencia original. AIFF utiliza una copia WAV float
 
 Clipping, clics y envolventes de reversa son detectores con límites; sus marcas deben escucharse. Las propuestas para detectar la reversa de verdad (comparación contra la fuente, declaración del estudiante, descriptores locales y firma de la reverberación) están en [docs/REVERSA-PROPUESTAS.md](docs/REVERSA-PROPUESTAS.md). Las pruebas sintéticas no equivalen a certificación de conformidad EBU/ITU. Los descriptores globales del modelo no demuestran que se aplicó pitch shift, time stretch o un filtro, ni localizan sus intervalos. Para verificar procesos ambiguos se necesita la fuente, el proyecto o evidencia del proceso de edición.
 
+## Muestras, tutoriales y feedback local
+
+- **Muestras** (menú del profesor): el corpus publicado en `public/corpus/` (50 grabaciones CC0 o de dominio público × 18 variantes = 900 muestras con etiqueta exacta). Se pueden escuchar el original y una versión por herramienta (MP3 de 12 s a 16 kHz), ver la cadena de procesos de cada variante, importar la colección a la biblioteca y cargar el modelo entrenado con ella, con su validación por grabación de origen. Se regenera con `npm run corpus:build` y `npm run corpus:model`; `npm run corpus:tune` compara hiperparámetros del bosque.
+- **Guía de uso**: tutorial paso a paso para profesor y estudiante dentro de la app (también desde la pantalla de entrada) y en [docs/GUIA-PROFESOR.md](docs/GUIA-PROFESOR.md) y [docs/GUIA-ESTUDIANTE.md](docs/GUIA-ESTUDIANTE.md).
+- **Redactar borrador**: el feedback se redacta en el navegador a partir de mediciones, etiquetas y evidencias, sin IA externa. Las alternativas (banco de comentarios, LLM pequeño en el navegador, pulido externo) están en [docs/FEEDBACK-LOCAL.md](docs/FEEDBACK-LOCAL.md).
+
 ## Publicación y contribuciones
 
 - **App publicada**: https://egtorres14.github.io/sonora/ (GitHub Pages; se despliega sola con cada push a `main` mediante `.github/workflows/deploy.yml`). Todo sigue ejecutándose en el navegador: no hay servidor ni claves.
 - **Contribuir muestras**: abre un issue con la plantilla *Contribuir muestras al corpus* y adjunta el JSON exportado desde Biblioteca (y, si quieres, un ZIP con el audio). Un flujo automático valida el esquema, descarta duplicados, abre un pull request con los registros en `corpus/contributions/` y guarda el audio en la release `corpus-audio`.
-- **Modelo comunitario**: al fusionar cambios en el corpus, `corpus.yml` entrena el modelo con el código de la app y publica `community-model.json` y la validación en la release `modelo-comunitario`. Cargar ese modelo desde la app es el siguiente paso pendiente.
+- **Modelo comunitario**: al fusionar cambios en el corpus, `corpus.yml` entrena el modelo con el código de la app y publica `community-model.json` y la validación en la release `modelo-comunitario`. El modelo que carga la app desde **Muestras** es `public/corpus/modelo.json`, regenerado con `npm run corpus:model`.
 
 ## Código y estado
 
@@ -82,7 +88,10 @@ Clipping, clics y envolventes de reversa son detectores con límites; sus marcas
 | `services/library*.ts` | Persistencia, importación validada y exportación |
 | `services/learning/` | Descriptores, particiones por origen, modelo y worker |
 | `services/llm/` | Proveedores opcionales, consenso y catálogo |
-| `components/workspace/` | Laboratorio, biblioteca y aprendizaje |
+| `components/workspace/` | Laboratorio, biblioteca, muestras, motores y aprendizaje |
+| `components/GuideView.tsx`, `docs/GUIA-*.md` | Tutoriales de profesor y estudiante (en la app y en Markdown) |
+| `services/corpus.ts`, `public/corpus/` | Corpus publicado: índice, colección importable, modelo entrenado y extractos MP3 |
+| `services/feedback.ts` | Borrador de feedback determinista a partir de evidencias ([alternativas](docs/FEEDBACK-LOCAL.md)) |
 | `tests/`, `tests/e2e/` | Pruebas de lógica y recorridos en Chromium |
 | `scripts/corpus/`, `scripts/contrib/` | Generación del corpus, evaluación y flujos de contribución |
 | `.github/` | Despliegue en Pages, CI, ingesta de contribuciones y modelo comunitario |

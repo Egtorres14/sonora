@@ -3,14 +3,14 @@
  * Usa exactamente el mismo código que la app (services/learning/model.ts): validación
  * en tres particiones separadas por grupo de origen.
  *
- *   npx tsx scripts/corpus/evaluate-corpus.ts [corpus/coleccion.json]
+ *   npx tsx scripts/corpus/evaluate-corpus.ts [public/corpus/coleccion.json]
  */
 import fs from 'node:fs';
 import { DatasetSchema } from '../../services/library-schema';
 import { trainingReadiness, trainLocalModel } from '../../services/learning/model';
 import type { TrainingSample, EffectId } from '../../services/learning/types';
 
-const file = process.argv[2] ?? 'corpus/coleccion.json';
+const file = process.argv[2] ?? 'public/corpus/coleccion.json';
 const dataset = DatasetSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8')));
 const samples: TrainingSample[] = dataset.records.map((r) => ({ id: r.id, sourceGroup: r.sourceGroup, origin: r.origin, features: r.features as TrainingSample['features'], labels: r.labels }));
 

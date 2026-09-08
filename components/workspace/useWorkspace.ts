@@ -3,6 +3,7 @@ import { analyzeFile, type AnalyzedAudio } from '../../services/audio';
 import { decodePcm, encodeWavFloat32 } from '../../services/audio/wav';
 import { createDemo, type DemoId } from '../../services/audio/demos';
 import { library, parseDataset } from '../../services/library';
+import { fetchCorpusCollection, fetchCorpusModel } from '../../services/corpus';
 import { createReview, updateReview, type ReviewRecord } from '../../services/review';
 import type { LocalModel } from '../../services/learning/types';
 import { loadSession, saveSession, clearSession, studentKey, type Session } from '../../services/session';
@@ -10,7 +11,7 @@ import { loadRubric, saveRubric, resetRubric } from '../../services/rubric-store
 import { loadEngineSettings, saveEngineSettings, type EngineSettings } from '../../services/engines';
 import type { RubricConfig } from '../../services/scoring/rubric';
 
-export type WorkspaceView = 'lab' | 'library' | 'learning' | 'rubric' | 'engines';
+export type WorkspaceView = 'lab' | 'library' | 'learning' | 'rubric' | 'engines' | 'corpus' | 'guide';
 const fileHash = async (file: Blob) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()))).map(b => b.toString(16).padStart(2, '0')).join('');
 const playbackBlob = (file: Blob, analysis: AnalyzedAudio) => analysis.features.file.container === 'aiff' ? new Blob([encodeWavFloat32(analysis.channels, analysis.sampleRate)], { type: 'audio/wav' }) : file;
 const useAudioUrl = (blob: Blob | null) => {
@@ -140,6 +141,22 @@ export default function useWorkspace() {
     catch (e) { setError(e instanceof Error ? e.message : 'No se pudo importar.'); }
     finally { setBusy(false); setStage(''); }
   };
+  /** Importa el corpus publicado (public/corpus) y, si existe, su modelo entrenado. */
+  const importCorpus = async (withModel: boolean) => {
+    if (busy || !isTeacher) return; setBusy(true); setError(''); setStage('Descargando la colección del corpus…');
+    try {
+      const records = await fetchCorpusCollection();
+      await saveQueue.current; const result = await library.importRecords(records); await refresh();
+      let modelNote = '';
+      if (withModel) {
+        setStage('Descargando el modelo entrenado…');
+        const published = await fetchCorpusModel();
+        if (published) { await library.saveModel(published); setModel(published); modelNote = ' · modelo entrenado cargado'; }
+      }
+      setNotice(`Corpus importado: ${result.added} registros nuevos · ${result.skipped} ya estaban${modelNote}. Las mediciones y etiquetas se guardan en este navegador; el audio no.`);
+    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo importar el corpus.'); }
+    finally { setBusy(false); setStage(''); }
+  };
   const reference = async (id: string) => {
     if (!isTeacher) return;
     const request = ++referenceRequest.current; setReferenceId(id); setReferenceBlob(null);
@@ -154,5 +171,5 @@ export default function useWorkspace() {
     catch { setError('No se pudo cargar la referencia.'); }
   };
   const saveModel = async (next: LocalModel) => { if (!isTeacher) return; await library.saveModel(next); setModel(next); setNotice('Modelo y resultados de validación guardados en este navegador.'); };
-  return { session, enter, leave, isTeacher, rubric, setRubric, restoreRubric, engines, setEngines, records, allRecords, model, view, setView, selected: records.find(r => r.id === selectedId), analyzed, audioUrl, referenceUrl, referenceId, reference, busy, stage, error, notice, saving, setError, setNotice, change, select, files, demo, remove, importFile, saveModel, cancel: () => abort.current?.abort() };
+  return { session, enter, leave, isTeacher, rubric, setRubric, restoreRubric, engines, setEngines, records, allRecords, model, view, setView, selected: records.find(r => r.id === selectedId), analyzed, audioUrl, referenceUrl, referenceId, reference, busy, stage, error, notice, saving, setError, setNotice, change, select, files, demo, remove, importFile, importCorpus, saveModel, cancel: () => abort.current?.abort() };
 }

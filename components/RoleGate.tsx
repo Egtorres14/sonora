@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowRight, GraduationCap, KeyRound, LockKeyhole, UserRound } from 'lucide-react';
+import { ArrowRight, GraduationCap, KeyRound, LockKeyhole, UserRound, BookOpen } from 'lucide-react';
 import { verifyTeacherPin, studentSession, teacherSession, type Session } from '../services/session';
 
-interface Props { onEnter: (session: Session) => void }
+interface Props { onEnter: (session: Session) => void; onGuide?: () => void }
 
-export default function RoleGate({ onEnter }: Props) {
+export default function RoleGate({ onEnter, onGuide }: Props) {
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [studentError, setStudentError] = useState('');
@@ -48,6 +48,7 @@ export default function RoleGate({ onEnter }: Props) {
           <button className="button secondary" type="submit" disabled={busy || pin.length < 4}><KeyRound size={15} /> Entrar como profesor</button>
         </form>
       </div>
+      {onGuide && <p className="role-guide"><button type="button" className="text-button" onClick={onGuide}><BookOpen size={14} /> ¿Cómo se usa? Tutorial para profesor y estudiante</button></p>}
       <p className="role-footnote"><LockKeyhole size={13} /> Todo se guarda en este navegador. El PIN separa los espacios en un equipo compartido; no es una cuenta ni protege frente a quien borre los datos del navegador.</p>
     </div>
   </div>;

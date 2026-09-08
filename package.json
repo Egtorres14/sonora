@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "corpus:fetch": "tsx scripts/corpus/fetch-sources.ts",
-    "corpus:build": "tsx scripts/corpus/build-corpus.ts --sources corpus/sources --out corpus",
+    "corpus:build": "tsx scripts/corpus/build-corpus.ts --sources corpus/sources --out public/corpus --wav none --mp3 --per-tool 2",
+    "corpus:model": "tsx scripts/contrib/train-community.ts public/corpus/coleccion.json corpus/contributions/*.json --out public/corpus/modelo.json",
+    "corpus:tune": "tsx scripts/corpus/tune.ts public/corpus/coleccion.json",
     "corpus:synthetic": "tsx scripts/corpus/build-corpus.ts --synthetic --out corpus-sintetico --wav none"
   },
   "dependencies": {
@@ -38,6 +40,7 @@
     "@vitejs/plugin-react": "^5.0.0",
     "audio-decode": "^3.12.0",
     "fake-indexeddb": "^6.2.5",
+    "lamejs": "^1.2.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.13",
     "typescript": "~5.8.2",

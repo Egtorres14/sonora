@@ -3,7 +3,7 @@
  *
  * 1. Lee el cuerpo del issue y localiza los adjuntos (github.com/user-attachments/files/...).
  * 2. Descarga los .json (o .json.gz): valida con DatasetSchema, descarta ids ya presentes en
- *    corpus/coleccion.json o corpus/contributions/*.json, anota la procedencia en `notes`.
+ *    public/corpus/coleccion.json o corpus/contributions/*.json, anota la procedencia en `notes`.
  * 3. Guarda corpus/contributions/issue-<N>.json en la rama contrib/issue-<N> y abre un PR.
  * 4. Los .zip (audio) se suben tal cual a la release "corpus-audio".
  * 5. Comenta en el issue el resultado. Nunca modifica main directamente.
@@ -30,7 +30,7 @@ const main = async () => {
 
   const known = new Set<string>();
   const addKnown = (file: string) => { try { const d = JSON.parse(fs.readFileSync(file, 'utf8')); for (const r of d.records ?? []) known.add(r.id); } catch { /* ignorar archivos ilegibles */ } };
-  if (fs.existsSync('corpus/coleccion.json')) addKnown('corpus/coleccion.json');
+  if (fs.existsSync('public/corpus/coleccion.json')) addKnown('public/corpus/coleccion.json');
   if (fs.existsSync('corpus/contributions')) for (const f of fs.readdirSync('corpus/contributions')) if (f.endsWith('.json')) addKnown(path.join('corpus/contributions', f));
 
   const accepted: unknown[] = [];
