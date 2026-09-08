@@ -17,7 +17,7 @@ import type { TrainingSample, EffectId } from '../../services/learning/types';
 const argv = process.argv.slice(2);
 const outIdx = argv.indexOf('--out');
 const outFile = outIdx >= 0 ? argv[outIdx + 1] : '';
-const files = argv.filter((f, i) => i !== outIdx && i !== outIdx + 1 && fs.existsSync(f));
+const files = argv.filter((f, i) => (outIdx < 0 || (i !== outIdx && i !== outIdx + 1)) && fs.existsSync(f));
 if (files.length === 0) throw new Error('No hay colecciones que cargar.');
 const seen = new Set<string>();
 const samples: TrainingSample[] = [];
