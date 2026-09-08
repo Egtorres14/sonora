@@ -11,7 +11,7 @@
  */
 import { serializableFeatures, formatTimestamp } from '../audio/features';
 import type { ToolId } from '../scoring/rubric';
-import type { Audience, EvaluationInput } from './types';
+import type { Audience, EvaluationHints, EvaluationInput } from './types';
 
 export interface PromptParts {
   system: string;
@@ -149,6 +149,29 @@ EJEMPLOS DE EVIDENCIA
 - Bien: "No detectado: los tres ataques de campana (0:03, 0:21, 0:40) tienen subida vertical y decaimiento natural; no hay ningún crescendo con corte."
 - Mal: "Se nota reversa." (sin tiempo, sin qué se oye, sin contraste).`;
 
+/** Sección 4b (modo refuerzo): lo que ya dicen el clasificador local y el profesor. */
+const pct = (v: number | null) => (v === null ? 'n/d' : `${Math.round(v * 100)} %`);
+const hintsSection = (h: EvaluationHints | undefined): string => {
+  if (!h || (!h.local?.length && !h.teacher?.length && !h.overprocessing && !h.extra)) return '';
+  const label = (id: string) => TOOL_LABEL[id as ToolId] ?? id;
+  const local = h.local?.length ? h.local.map((p) => `- ${label(p.effect)}: ${p.predicted === null ? 'se abstiene' : p.predicted ? 'sugiere PRESENCIA' : 'sugiere AUSENCIA'} (votos por presencia ${pct(p.voteShare)}, exactitud equilibrada del clasificador ${pct(p.balancedAccuracy)})`).join('\n') : '- (sin clasificador local disponible)';
+  const teacher = h.teacher?.length ? h.teacher.map((t) => `- ${label(t.effect)}: ${t.label === 'present' ? 'PRESENTE' : t.label === 'absent' ? 'AUSENTE' : 'pendiente'}${t.evidence.trim() ? ` · evidencia: "${t.evidence.trim()}"` : ''}`).join('\n') : '- (sin decisiones todavía)';
+  return `REFUERZO: LO QUE YA SE SABE (contrástalo, no lo copies)
+Un clasificador local (bosques aleatorios entrenados con la biblioteca del profesor, a partir de descriptores globales) y el propio profesor ya han opinado sobre esta pieza. Tu papel es reforzar o refutar cada punto con evidencia propia.
+Clasificador local:
+${local}
+Decisiones del profesor:
+${teacher}
+- Sobreprocesamiento según el profesor: ${h.overprocessing ?? 'pendiente'}. Efectos extra: ${h.extra === 'present' ? 'confirmados' : h.extra === 'absent' ? 'no' : 'pendiente'}.
+Reglas del refuerzo:
+1. Escucha (o mira) primero y decide; después compara con lo anterior.
+2. Si coincides, di en la evidencia qué lo confirma con tiempo.
+3. Si discrepas, dilo explícitamente en la evidencia ("el clasificador sugiere presencia, pero…") y calibra tu confianza con honestidad.
+4. Un clasificador con exactitud equilibrada baja (por debajo del 65 %) apenas debe mover tu confianza; uno por encima del 75 % merece que busques con más cuidado antes de contradecirlo.
+5. Las decisiones del profesor son hipótesis fuertes, no verdades: nunca cambies tu detección solo para coincidir, pero explica cualquier discrepancia con detalle porque el profesor la revisará.
+6. Lo pendiente lo tratas como una escucha independiente.`;
+};
+
 /** Sección 5: el contrato de cada campo del JSON. */
 const outputSection = (audience: Audience): string => `CONTRATO DE SALIDA (responde ÚNICAMENTE con el JSON del esquema; sin texto fuera del JSON)
 - descripcion_sonora: 3-5 frases con tiempos (m:ss): fuentes, evolución, textura, espacio. ${audience === 'teacher' ? 'El profesor la usará para comprobar que has percibido lo mismo que él.' : 'Le sirve al estudiante para entender qué percibe alguien externo.'}
@@ -195,6 +218,8 @@ ${rubricSection(input)}
 ${protocolSection(capabilities)}
 
 ${calibrationSection()}
+
+${hintsSection(input.hints)}
 
 ${outputSection(audience)}
 

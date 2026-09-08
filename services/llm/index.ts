@@ -1,6 +1,7 @@
 import { geminiProvider } from './gemini';
 import { openaiProvider } from './openai';
 import { anthropicProvider } from './anthropic';
+import { openrouterProvider } from './openrouter';
 import { aggregateAssessments, type ConsensusResult } from './consensus';
 import { estimateCost, findModel } from './catalog';
 import { ProviderError, type EvaluationInput, type LLMProvider, type ProviderId, type ProviderResult, type TokenUsage } from './types';
@@ -9,6 +10,7 @@ export const PROVIDERS: Record<ProviderId, LLMProvider> = {
   gemini: geminiProvider,
   openai: openaiProvider,
   anthropic: anthropicProvider,
+  openrouter: openrouterProvider,
 };
 
 export interface RunConfig {
@@ -28,6 +30,8 @@ export interface AssessmentRun extends ConsensusResult {
   usage: TokenUsage;
   estimatedCostUsd: number;
   elapsedMs: number;
+  /** Avisos de los proveedores (p. ej. se consultó sin audio por falta de saldo). */
+  warnings: string[];
 }
 
 export const runAssessment = async (input: EvaluationInput, cfg: RunConfig): Promise<AssessmentRun> => {
@@ -71,10 +75,12 @@ export const runAssessment = async (input: EvaluationInput, cfg: RunConfig): Pro
     }
   }
 
-  return { ...consensus, results, failures, usage, estimatedCostUsd: +estimatedCostUsd.toFixed(4), elapsedMs: Date.now() - t0 };
+  const warnings = [...new Set(results.flatMap((r) => r.warnings ?? []))];
+  return { ...consensus, results, failures, usage, estimatedCostUsd: +estimatedCostUsd.toFixed(4), elapsedMs: Date.now() - t0, warnings };
 };
 
 export { aggregateAssessments } from './consensus';
 export * from './catalog';
 export * from './types';
 export type { CreativeAssessment, ToolAssessment } from './schema';
+export { extractJson } from './json';

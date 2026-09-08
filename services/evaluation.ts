@@ -8,7 +8,7 @@ import { formatTimestamp } from './audio/features';
 import { prepareModelAudio } from './audio/prepare';
 import { renderSpectrogramPng, renderWaveformPng } from './audio/spectrogram';
 import { DEFAULT_RUBRIC, computeFinal, scoreCreative, scoreFormal, scoreTechnical, type RubricConfig } from './scoring/rubric';
-import { PROVIDER_LABELS, findModel, runAssessment, type Audience, type EvaluationInput, type RunConfig } from './llm';
+import { PROVIDER_LABELS, findModel, runAssessment, type Audience, type EvaluationHints, type EvaluationInput, type RunConfig } from './llm';
 import { ProviderError } from './llm/types';
 
 export interface EvaluateProjectArgs {
@@ -19,6 +19,8 @@ export interface EvaluateProjectArgs {
   rubric?: RubricConfig;
   /** 'teacher' (por defecto) o 'student': cambia el tono y el enfoque del prompt, no el esquema. */
   audience?: Audience;
+  /** Modo «refuerzo»: predicciones del clasificador local y decisiones del profesor para contrastar. */
+  hints?: EvaluationHints;
   llm: RunConfig;
   onStage?: (stage: string) => void;
 }
@@ -34,7 +36,7 @@ export const evaluateProject = async (args: EvaluateProjectArgs): Promise<AudioE
   const formal = scoreFormal(fileName, args.synopsis, rubric);
   const technical = scoreTechnical(f, rubric);
 
-  const input: EvaluationInput = { fileName, audience: args.audience ?? 'teacher', synopsis: args.synopsis, context: args.context, features: f, rubric };
+  const input: EvaluationInput = { fileName, audience: args.audience ?? 'teacher', hints: args.hints, synopsis: args.synopsis, context: args.context, features: f, rubric };
   const warnings = [...f.analysis.warnings];
 
   if (model.inputs.audio) {
@@ -46,11 +48,12 @@ export const evaluateProject = async (args: EvaluateProjectArgs): Promise<AudioE
     input.spectrogram = renderSpectrogramPng(analyzed.channels, analyzed.sampleRate);
     if (model.provider === 'anthropic') input.waveform = renderWaveformPng(analyzed.channels, analyzed.sampleRate);
   }
-  const modalidad: AudioEvaluation['meta']['modalidad'] = model.inputs.audio && model.inputs.image ? 'audio + espectrograma' : model.inputs.audio ? 'audio' : 'espectrograma + métricas';
-
   args.onStage?.(`Consultando a ${model.label}${args.llm.runs > 1 ? ` (${args.llm.runs} ejecuciones en paralelo)` : ''}…`);
   const run = await runAssessment(input, args.llm);
   const a = run.assessment;
+  warnings.push(...run.warnings);
+  const listened = model.inputs.audio && !run.warnings.some((w) => /sin audio/i.test(w));
+  const modalidad: AudioEvaluation['meta']['modalidad'] = listened && model.inputs.image ? 'audio + espectrograma' : listened ? 'audio' : 'espectrograma + métricas';
 
   const creative = scoreCreative(
     {

@@ -1,8 +1,9 @@
 import { GoogleGenAI, ApiError } from '@google/genai';
 import { buildPrompt } from './prompt';
-import { creativeAssessmentJsonSchema, normalizeAssessment } from './schema';
+import { creativeAssessmentJsonSchema, normalizeAssessment, toCleanJsonSchema } from './schema';
+import { extractJson } from './json';
 import { findModel } from './catalog';
-import { ProviderError, type EvaluateOptions, type EvaluationInput, type LLMProvider, type ProviderResult } from './types';
+import { ProviderError, type EvaluateOptions, type EvaluationInput, type JsonRequest, type JsonResult, type LLMProvider, type ProviderResult } from './types';
 
 const MAX_INLINE_BYTES = 18 * 1024 * 1024; // límite documentado: 20 MB por petición (incluye prompt)
 
@@ -84,5 +85,25 @@ export const geminiProvider: LLMProvider = {
       provider: 'gemini',
       elapsedMs: Date.now() - t0,
     };
+  },
+
+  async generateJson<T>(req: JsonRequest<T>): Promise<JsonResult<T>> {
+    const ai = new GoogleGenAI({ apiKey: req.apiKey });
+    const t0 = Date.now();
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: req.model,
+        contents: [{ role: 'user', parts: [{ text: req.user }] }],
+        config: { systemInstruction: req.system, responseMimeType: 'application/json', responseJsonSchema: toCleanJsonSchema(req.schema), temperature: req.temperature ?? 0.3, maxOutputTokens: req.maxOutputTokens, abortSignal: req.signal },
+      });
+    } catch (error) { throw mapError(error); }
+    const text = (response.text ?? '').trim();
+    if (!text) throw new ProviderError('Gemini devolvió una respuesta vacía (posible bloqueo de seguridad).', 'gemini', 'refusal', response);
+    let data: T;
+    try { data = req.schema.parse(extractJson(text)); }
+    catch (error) { throw new ProviderError('Gemini devolvió un JSON que no cumple el esquema.', 'gemini', 'parse', { error, text }); }
+    const u = response.usageMetadata;
+    return { data, usage: u ? { inputTokens: u.promptTokenCount ?? 0, outputTokens: u.candidatesTokenCount ?? 0 } : undefined, raw: response, elapsedMs: Date.now() - t0 };
   },
 };

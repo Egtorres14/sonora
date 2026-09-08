@@ -1,9 +1,10 @@
 import OpenAI from 'openai';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { buildPrompt } from './prompt';
-import { CreativeAssessmentSchema, creativeAssessmentJsonSchema, normalizeAssessment } from './schema';
+import { CreativeAssessmentSchema, creativeAssessmentJsonSchema, normalizeAssessment, toCleanJsonSchema } from './schema';
+import { extractJson } from './json';
 import { findModel } from './catalog';
-import { ProviderError, type EvaluateOptions, type EvaluationInput, type LLMProvider, type ProviderResult } from './types';
+import { ProviderError, type EvaluateOptions, type EvaluationInput, type JsonRequest, type JsonResult, type LLMProvider, type ProviderResult } from './types';
 
 const mapError = (error: unknown): ProviderError => {
   if (error instanceof OpenAI.AuthenticationError) return new ProviderError('Clave de API de OpenAI no válida.', 'openai', 'auth', error);
@@ -93,5 +94,33 @@ export const openaiProvider: LLMProvider = {
       if (error instanceof ProviderError) throw error;
       throw mapError(error);
     }
+  },
+
+  async generateJson<T>(req: JsonRequest<T>): Promise<JsonResult<T>> {
+    const client = new OpenAI({ apiKey: req.apiKey, dangerouslyAllowBrowser: true });
+    const t0 = Date.now();
+    const run = async (structured: boolean) => {
+      const system = structured ? req.system : `${req.system}\n\nEl JSON debe cumplir exactamente este JSON Schema:\n${JSON.stringify(toCleanJsonSchema(req.schema))}`;
+      return client.chat.completions.create(
+        { model: req.model, temperature: req.temperature ?? 0.3, max_tokens: req.maxOutputTokens, messages: [{ role: 'system', content: system }, { role: 'user', content: req.user }], response_format: structured ? zodResponseFormat(req.schema, req.schemaName) : { type: 'json_object' } },
+        { signal: req.signal },
+      );
+    };
+    let completion: OpenAI.Chat.Completions.ChatCompletion;
+    try {
+      try { completion = await run(true); }
+      catch (error) {
+        const unsupported = error instanceof OpenAI.BadRequestError && /response_format|json_schema|structured/i.test(error.message);
+        if (!unsupported) throw error;
+        completion = await run(false);
+      }
+    } catch (error) { throw mapError(error); }
+    const choice = completion.choices[0];
+    if (choice?.message.refusal) throw new ProviderError(`OpenAI rehusó redactar: ${choice.message.refusal}`, 'openai', 'refusal', completion);
+    const text = choice?.message.content ?? '';
+    let data: T;
+    try { data = req.schema.parse(extractJson(text)); }
+    catch (error) { throw new ProviderError('OpenAI devolvió un JSON que no cumple el esquema.', 'openai', 'parse', { error, text }); }
+    return { data, usage: completion.usage ? { inputTokens: completion.usage.prompt_tokens, outputTokens: completion.usage.completion_tokens } : undefined, raw: completion, elapsedMs: Date.now() - t0 };
   },
 };

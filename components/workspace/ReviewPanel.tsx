@@ -1,14 +1,35 @@
-import { Check, ClipboardCheck, PenLine, RotateCcw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, ClipboardCheck, LoaderCircle, PenLine, RotateCcw, Sparkles } from 'lucide-react';
 import { draftFeedback } from '../../services/feedback';
 import { calculateReview, EFFECTS, type ReviewRecord, type ReviewLabel } from '../../services/review';
 import type { RubricConfig } from '../../services/scoring/rubric';
-import type { EngineSettings } from '../../services/engines';
+import { loadKey, type EngineSettings } from '../../services/engines';
+import { findModel } from '../../services/llm/catalog';
 
 interface Props { record: ReviewRecord; rubric: RubricConfig; engines?: EngineSettings; onChange: (patch: Partial<ReviewRecord>) => void }
 const labelOptions: { value: ReviewLabel; label: string }[] = [{ value: 'unknown', label: 'Pendiente' }, { value: 'present', label: 'Presente' }, { value: 'absent', label: 'Ausente' }];
 
 export default function ReviewPanel({ record, rubric, engines, onChange }: Props) {
   const ai = record.ai;
+  const [writing, setWriting] = useState(false), [writeError, setWriteError] = useState('');
+  const abort = useRef<AbortController | null>(null);
+  useEffect(() => () => abort.current?.abort(), []);
+  const external = engines && engines.engine !== 'local' ? engines.engine : null;
+  const aiWriter = !!external && engines!.feedbackWriter === 'ia';
+  const writerKey = external ? loadKey(external) : '';
+  const writerModel = external ? findModel(engines!.models[external]) : null;
+  const appendDraft = (text: string) => onChange({ notes: record.notes.trim() ? `${record.notes.trim()}\n\n${text}` : text });
+  const draft = async () => {
+    if (!aiWriter || !external) { appendDraft(draftFeedback(record, rubric).text); return; }
+    if (!writerKey.trim()) { setWriteError(`Falta la clave de ${external} en «Motores de IA»; se usa el borrador local.`); appendDraft(draftFeedback(record, rubric).text); return; }
+    const controller = new AbortController(); abort.current = controller; setWriting(true); setWriteError('');
+    try {
+      const { writeFeedback } = await import('../../services/llm/writer');
+      const result = await writeFeedback(record, rubric, { provider: external, model: engines!.models[external], apiKey: writerKey, signal: controller.signal });
+      if (!controller.signal.aborted) appendDraft(result.texto);
+    } catch (e) { setWriteError(e instanceof Error ? e.message : 'No se pudo redactar con la IA.'); }
+    finally { setWriting(false); abort.current = null; }
+  };
   const score = calculateReview(record, rubric);
   const required = new Set(rubric.creative.requiredTools);
   const maxManual = rubric.totalPoints + rubric.bonus.points;
@@ -20,7 +41,8 @@ export default function ReviewPanel({ record, rubric, engines, onChange }: Props
       </div>)}</div>
       <div className="two-fields"><label>Sobreprocesamiento<select aria-label="Sobreprocesamiento" value={record.overprocessing} onChange={e => onChange({ overprocessing: e.target.value as ReviewRecord['overprocessing'] })}><option value="unknown">Pendiente de revisión</option><option value="none">No se aprecia</option><option>Leve</option><option>Moderado</option><option>Severo</option></select></label><label>Efectos extra<select aria-label="Efectos extra" value={record.extra} onChange={e => onChange({ extra: e.target.value as ReviewLabel })}><option value="unknown">Pendiente de revisión</option><option value="present">Confirmados (+{rubric.bonus.points.toLocaleString('es')})</option><option value="absent">Sin efectos extra</option></select></label></div>
       <label className="field">Feedback para el estudiante<textarea rows={3} placeholder="Qué funciona, qué revisar y en qué momento…" value={record.notes} onChange={e => onChange({ notes: e.target.value })} /></label>
-      <div className="draft-row"><button type="button" className="button secondary" onClick={() => { const d = draftFeedback(record, rubric); onChange({ notes: record.notes.trim() ? `${record.notes.trim()}\n\n${d.text}` : d.text }); }}><PenLine size={14} /> Redactar borrador</button><small className="muted text-small">Se redacta aquí, sin IA externa, a partir de las mediciones y de tus anotaciones. Edítalo antes de publicar.</small></div>
+      <div className="draft-row"><button type="button" className="button secondary" disabled={writing} onClick={draft}>{writing ? <LoaderCircle className="spin" size={14} /> : aiWriter ? <Sparkles size={14} /> : <PenLine size={14} />} {writing ? 'Redactando…' : aiWriter ? 'Redactar con IA' : 'Redactar borrador'}</button><small className="muted text-small">{aiWriter ? `${writerModel?.label ?? external} redacta a partir de tus decisiones cerradas y las mediciones; no añade detecciones. Edítalo antes de publicar.` : 'Se redacta aquí, sin IA externa, a partir de las mediciones y de tus anotaciones. Edítalo antes de publicar.'}</small></div>
+      {writing && <button type="button" className="text-button" onClick={() => abort.current?.abort()}>Cancelar redacción</button>}{writeError && <p role="alert" className="error-text">{writeError}</p>}
     </section>
     <aside className="score-panel"><span className="eyebrow">EVALUACIÓN / {score.maxTotal.toLocaleString('es')} PUNTOS</span><div className="score-display" data-testid="final-score">{score.final === null ? <span className="pending-score">En revisión</span> : <><strong>{score.final.toLocaleString('es', { maximumFractionDigits: 2 })}</strong><span>/ {score.maxTotal.toLocaleString('es')}</span></>}</div><p>{score.manual ? 'Nota ajustada por el profesor.' : score.pending.length ? `${score.pending.length} decisiones pendientes. Rango posible: ${score.minimum}–${score.maximum}.` : 'Revisión completa. Calculada con la rúbrica.'}</p>
       <div className="score-breakdown">{[{ label: 'Formal', value: score.formal.total, max: score.formalMax }, { label: 'Técnica', value: score.technical.total, max: score.technicalMax }, { label: 'Creatividad', value: score.creative.total, max: score.creative.max }].map(row => <div key={row.label}><span>{row.label}</span><b>{row.label === 'Creatividad' && score.pending.length ? `${score.creative.minimum}–${row.value}` : row.value}<small> / {row.max}</small></b><div><i style={{ width: `${row.max ? row.value / row.max * 100 : 0}%` }} /></div></div>)}<div className="bonus-row"><span>Extra</span><b>{record.extra === 'unknown' ? 'Pendiente' : `+${score.bonus}`}</b></div></div>

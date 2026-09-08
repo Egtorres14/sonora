@@ -1,8 +1,9 @@
 import type { AudioFeatures } from '../audio/features';
 import type { RubricConfig } from '../scoring/rubric';
 import type { CreativeAssessment } from './schema';
+import type { z } from 'zod';
 
-export type ProviderId = 'gemini' | 'openai' | 'anthropic';
+export type ProviderId = 'gemini' | 'openai' | 'anthropic' | 'openrouter';
 
 export interface ModelPricing {
   /** USD por millón de tokens de texto de entrada */
@@ -28,6 +29,10 @@ export interface ModelInfo {
   notes?: string;
   /** Recorte de contexto: tokens máximos de salida que pediremos */
   maxOutputTokens?: number;
+  /** El modelo acepta response_format json_schema (si no, se pide JSON en el prompt y se extrae del texto). */
+  structuredOutput?: boolean;
+  /** Sin coste (OpenRouter :free). Sujeto a límites de peticiones. */
+  free?: boolean;
 }
 
 /** Audio preparado para el modelo (mezcla mono 16 kHz PCM16 → pequeño y equivalente a lo que el modelo procesa). */
@@ -51,9 +56,18 @@ export interface ModelImage {
 /** A quién va dirigida la lectura: el profesor (revisión completa) o el estudiante (lectura orientativa, sin nota). */
 export type Audience = 'teacher' | 'student';
 
+/** Pistas para el modo «refuerzo»: lo que ya dicen el clasificador local y el profesor. */
+export interface EvaluationHints {
+  local?: { effect: string; predicted: boolean | null; voteShare: number | null; balancedAccuracy: number | null }[];
+  teacher?: { effect: string; label: 'present' | 'absent' | 'unknown'; evidence: string }[];
+  overprocessing?: string;
+  extra?: 'present' | 'absent' | 'unknown';
+}
+
 export interface EvaluationInput {
   fileName: string;
   audience?: Audience;
+  hints?: EvaluationHints;
   synopsis: string;
   context: string;
   features: AudioFeatures;
@@ -79,7 +93,23 @@ export interface ProviderResult {
   model: string;
   provider: ProviderId;
   elapsedMs: number;
+  /** Avisos sobre cómo se hizo la consulta (p. ej. se reintentó sin audio). */
+  warnings?: string[];
 }
+
+/** Petición genérica de JSON (para el redactor de feedback y otros usos de texto). */
+export interface JsonRequest<T> {
+  system: string;
+  user: string;
+  schema: z.ZodType<T>;
+  schemaName: string;
+  model: string;
+  apiKey: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  signal?: AbortSignal;
+}
+export interface JsonResult<T> { data: T; usage?: TokenUsage; raw?: unknown; elapsedMs: number }
 
 export interface LLMProvider {
   id: ProviderId;
@@ -87,6 +117,8 @@ export interface LLMProvider {
   /** Mensaje de ayuda para obtener la clave */
   keyHelp: string;
   evaluate(input: EvaluationInput, opts: EvaluateOptions): Promise<ProviderResult>;
+  /** Genera un JSON validado con zod a partir de texto (sin audio ni imágenes). */
+  generateJson<T>(req: JsonRequest<T>): Promise<JsonResult<T>>;
 }
 
 export class ProviderError extends Error {

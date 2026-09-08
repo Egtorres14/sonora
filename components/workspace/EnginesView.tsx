@@ -6,12 +6,12 @@ import type { ProviderId } from '../../services/llm/types';
 import { testKey } from '../../services/llm/keycheck';
 
 interface Props { settings: EngineSettings; onSave: (s: EngineSettings) => void; submissions: number }
-const PROVIDERS: ProviderId[] = ['gemini', 'anthropic', 'openai'];
-const KEY_HELP: Record<ProviderId, string> = { gemini: 'aistudio.google.com/apikey', openai: 'platform.openai.com/api-keys', anthropic: 'console.anthropic.com/settings/keys' };
+const KEY_HELP: Record<ProviderId, string> = { gemini: 'aistudio.google.com/apikey', openai: 'platform.openai.com/api-keys', anthropic: 'console.anthropic.com/settings/keys', openrouter: 'openrouter.ai/settings/keys' };
+const KEY_PLACEHOLDER: Record<ProviderId, string> = { gemini: 'AIza…', openai: 'sk-…', anthropic: 'sk-ant-…', openrouter: 'sk-or-v1-…' };
 
 export default function EnginesView({ settings, onSave, submissions }: Props) {
   const [draft, setDraft] = useState<EngineSettings>(settings);
-  const [keys, setKeys] = useState<Record<ProviderId, string>>({ gemini: loadKey('gemini'), openai: loadKey('openai'), anthropic: loadKey('anthropic') });
+  const [keys, setKeys] = useState<Record<ProviderId, string>>({ gemini: loadKey('gemini'), openai: loadKey('openai'), anthropic: loadKey('anthropic'), openrouter: loadKey('openrouter') });
   const [show, setShow] = useState<Partial<Record<ProviderId, boolean>>>({});
   const [checking, setChecking] = useState<Partial<Record<ProviderId, boolean>>>({});
   const abort = useRef<AbortController | null>(null);
@@ -48,10 +48,10 @@ export default function EnginesView({ settings, onSave, submissions }: Props) {
           <p className="engine-summary">{info.summary}</p>
           <div className="engine-pros"><div><b>A favor</b>{info.pros}</div><div><b>En contra</b>{info.cons}</div></div>
           {provider && <div className="engine-config">
-            <label className="field">Modelo<select value={draft.models[provider]} onChange={(e) => setDraft((d) => ({ ...d, models: { ...d.models, [provider]: e.target.value } }))}>{modelsFor(provider).map((m) => <option key={m.id} value={m.id}>{m.label}{m.tag ? ` · ${m.tag.replace('-', ' ')}` : ''} · ≈ {engineCost({ ...draft, engine: provider, models: { ...draft.models, [provider]: m.id } }, 60, 1).toFixed(3)} $</option>)}</select></label>
+            <label className="field">Modelo<select value={draft.models[provider]} onChange={(e) => setDraft((d) => ({ ...d, models: { ...d.models, [provider]: e.target.value } }))}>{modelsFor(provider).map((m) => <option key={m.id} value={m.id}>{m.label}{m.tag ? ` · ${m.tag.replace('-', ' ')}` : ''} · {m.free ? 'gratis' : `≈ ${engineCost({ ...draft, engine: provider, models: { ...draft.models, [provider]: m.id } }, 60, 1).toFixed(3)} $`}</option>)}</select></label>
             <label className="field">Clave de API de {PROVIDER_LABELS[provider]}
               <div className="key-row">
-                <input type={show[provider] ? 'text' : 'password'} autoComplete="off" spellCheck={false} value={keys[provider]} placeholder={provider === 'gemini' ? 'AIza…' : provider === 'openai' ? 'sk-…' : 'sk-ant-…'} aria-label={`Clave de API de ${PROVIDER_LABELS[provider]}`} onChange={(e) => setKey(provider, e.target.value)} />
+                <input type={show[provider] ? 'text' : 'password'} autoComplete="off" spellCheck={false} value={keys[provider]} placeholder={KEY_PLACEHOLDER[provider]} aria-label={`Clave de API de ${PROVIDER_LABELS[provider]}`} onChange={(e) => setKey(provider, e.target.value)} />
                 <button type="button" className="button secondary" onClick={() => setShow((s) => ({ ...s, [provider]: !s[provider] }))}>{show[provider] ? 'Ocultar' : 'Ver'}</button>
                 <button type="button" className="button secondary" disabled={!keys[provider].trim() || checking[provider]} onClick={() => check(provider)}>{checking[provider] ? <LoaderCircle className="spin" size={14} /> : <KeyRound size={14} />} Probar</button>
                 {keys[provider] && <button type="button" className="icon-button" aria-label={`Borrar clave de ${PROVIDER_LABELS[provider]}`} onClick={() => setKey(provider, '')}><Trash2 size={14} /></button>}
@@ -69,6 +69,8 @@ export default function EnginesView({ settings, onSave, submissions }: Props) {
       <div className="access-row"><div><b>Yo, al revisar</b><small>Siempre disponible con el motor elegido, desde «Ver asistentes».</small></div><span className="pill positive">Activo</span></div>
       <div className="access-row"><div><b>Los estudiantes, al entregar</b><small>Reciben una lectura orientativa (qué se oye, fortalezas y mejoras), sin nota. Una consulta por entrega, con tu clave y tu presupuesto.</small></div><label className="switch"><input type="checkbox" checked={draft.studentAccess} disabled={draft.engine === 'local'} onChange={(e) => setDraft((d) => ({ ...d, studentAccess: e.target.checked }))} /><span aria-hidden="true" /><span className="visually-hidden">Permitir a los estudiantes pedir una lectura orientativa</span></label></div>
       {draft.engine === 'local' && <p className="muted text-small">Con el modelo local los estudiantes ven las mediciones, pero no una lectura del modelo: sus sugerencias solo aparecen al profesor para no confundir una predicción débil con una corrección.</p>}
+      <div className="access-row"><div><b>Modo de análisis</b><small>Independiente: el modelo escucha sin pistas. Refuerzo: recibe las sugerencias del clasificador local y tus decisiones, y las confirma o refuta con evidencia.</small></div><select aria-label="Modo de análisis" value={draft.analysisMode} disabled={draft.engine === 'local'} onChange={(e) => setDraft((d) => ({ ...d, analysisMode: e.target.value as EngineSettings['analysisMode'] }))}><option value="independiente">Escucha independiente</option><option value="refuerzo">Refuerzo del modelo local</option></select></div>
+      <div className="access-row"><div><b>Redacción del feedback</b><small>Cómo funciona «Redactar borrador» en todas las revisiones. Con IA, el modelo redacta a partir de tus decisiones cerradas y las mediciones; nunca añade detecciones. Tú lo editas antes de publicar.</small></div><select aria-label="Redacción del feedback" value={draft.feedbackWriter} disabled={draft.engine === 'local'} onChange={(e) => setDraft((d) => ({ ...d, feedbackWriter: e.target.value as EngineSettings['feedbackWriter'] }))}><option value="local">Borrador local (sin IA)</option><option value="ia">Redactado por la IA elegida</option></select></div>
       <div className="access-row"><div><b>Ejecuciones por consulta del profesor</b><small>Con 3 o 5 se decide por mayoría y se muestra el acuerdo. Cada ejecución se cobra.</small></div><select aria-label="Ejecuciones por consulta" value={draft.runs} disabled={draft.engine === 'local'} onChange={(e) => setDraft((d) => ({ ...d, runs: Number(e.target.value) as 1 | 3 | 5 }))}><option value={1}>1</option><option value={3}>3</option><option value={5}>5</option></select></div>
       <dl className="cost-summary">
         <div><dt>Por consulta del profesor (60 s, {draft.runs} ejecución{draft.runs > 1 ? 'es' : ''})</dt><dd className="mono">{perEval.toFixed(3)} $</dd></div>

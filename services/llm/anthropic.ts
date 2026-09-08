@@ -3,7 +3,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { buildPrompt } from './prompt';
 import { CreativeAssessmentSchema, normalizeAssessment } from './schema';
 import { findModel } from './catalog';
-import { ProviderError, type EvaluateOptions, type EvaluationInput, type LLMProvider, type ProviderResult } from './types';
+import { ProviderError, type EvaluateOptions, type EvaluationInput, type JsonRequest, type JsonResult, type LLMProvider, type ProviderResult } from './types';
 
 const mapError = (error: unknown): ProviderError => {
   if (error instanceof Anthropic.AuthenticationError) return new ProviderError('Clave de API de Anthropic no válida.', 'anthropic', 'auth', error);
@@ -71,5 +71,21 @@ export const anthropicProvider: LLMProvider = {
       provider: 'anthropic',
       elapsedMs: Date.now() - t0,
     };
+  },
+
+  async generateJson<T>(req: JsonRequest<T>): Promise<JsonResult<T>> {
+    const client = new Anthropic({ apiKey: req.apiKey, dangerouslyAllowBrowser: true });
+    const model = findModel(req.model);
+    const t0 = Date.now();
+    let response;
+    try {
+      response = await client.messages.parse(
+        { model: req.model, max_tokens: req.maxOutputTokens ?? model?.maxOutputTokens ?? 4000, system: req.system, messages: [{ role: 'user', content: req.user }], output_config: { format: zodOutputFormat(req.schema) } },
+        { signal: req.signal },
+      );
+    } catch (error) { throw mapError(error); }
+    if (response.stop_reason === 'refusal') throw new ProviderError('Claude rehusó redactar.', 'anthropic', 'refusal', response);
+    if (!response.parsed_output) throw new ProviderError('Claude devolvió una respuesta sin JSON válido.', 'anthropic', 'parse', response);
+    return { data: response.parsed_output as T, usage: { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens }, raw: response, elapsedMs: Date.now() - t0 };
   },
 };

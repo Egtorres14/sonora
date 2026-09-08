@@ -51,7 +51,7 @@ export default function useWorkspace() {
   const enter = (next: Session) => { saveSession(next); setSession(next); resetSelection(); setView('lab'); setError(''); setNotice(''); };
   const leave = () => { abort.current?.abort(); clearSession(); setSession(null); resetSelection(); setView('lab'); setError(''); setNotice(''); };
   const setRubric = (next: RubricConfig) => { try { setRubricState(saveRubric(next)); setNotice('Rúbrica guardada en este navegador. Las notas se recalculan con ella.'); } catch (e) { setError(e instanceof Error ? e.message : 'Rúbrica inválida.'); } };
-  const setEngines = (next: EngineSettings) => { saveEngineSettings(next); setEnginesState(next); setNotice(next.engine === 'local' ? 'Motores guardados: segunda opinión con el modelo local.' : `Motores guardados: ${next.engine} · ${next.models[next.engine]}${next.studentAccess ? ' · lectura orientativa activa para estudiantes' : ''}.`); setView('lab'); };
+  const setEngines = (next: EngineSettings) => { saveEngineSettings(next); setEnginesState(next); setNotice(next.engine === 'local' ? 'Motores guardados: segunda opinión con el modelo local.' : `Motores guardados: ${next.engine} · ${next.models[next.engine]} · ${next.analysisMode === 'refuerzo' ? 'refuerzo del modelo local' : 'escucha independiente'} · feedback ${next.feedbackWriter === 'ia' ? 'redactado por IA' : 'local'}${next.studentAccess ? ' · lectura orientativa activa para estudiantes' : ''}.`); setView('lab'); };
   const restoreRubric = () => { setRubricState(resetRubric()); setNotice('Rúbrica restablecida a la original.'); };
 
   const change = (id: string, patch: Partial<ReviewRecord>) => {

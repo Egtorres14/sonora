@@ -48,8 +48,8 @@ export type ToolAssessment = z.infer<typeof ToolAssessmentSchema>;
  * JSON Schema "limpio" para Gemini (`responseJsonSchema`) y para prompts de respaldo.
  * Elimina claves que algunos proveedores rechazan.
  */
-export const creativeAssessmentJsonSchema = (): Record<string, unknown> => {
-  const raw = z.toJSONSchema(CreativeAssessmentSchema, { target: 'draft-7' }) as Record<string, unknown>;
+export const toCleanJsonSchema = (schema: z.ZodType): Record<string, unknown> => {
+  const raw = z.toJSONSchema(schema, { target: 'draft-7' }) as Record<string, unknown>;
   const strip = (node: unknown): unknown => {
     if (Array.isArray(node)) return node.map(strip);
     if (node && typeof node === 'object') {
@@ -64,6 +64,7 @@ export const creativeAssessmentJsonSchema = (): Record<string, unknown> => {
   };
   return strip(raw) as Record<string, unknown>;
 };
+export const creativeAssessmentJsonSchema = (): Record<string, unknown> => toCleanJsonSchema(CreativeAssessmentSchema);
 
 /** Normaliza una salida cruda del modelo: valida, rellena herramientas ausentes y acota rangos. */
 export const normalizeAssessment = (raw: unknown): CreativeAssessment => {

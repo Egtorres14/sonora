@@ -76,9 +76,44 @@ export const MODEL_CATALOG: ModelInfo[] = [
     notes: 'Barato y rápido; resolución de imagen estándar (1568 px).',
     maxOutputTokens: 8000,
   },
+
+  // ------------------------------ OpenRouter -------------------------------
+  // Precios de https://openrouter.ai/api/v1/models (2026-09-07). OpenRouter exige al menos 0,50 $ de saldo
+  // para peticiones con audio, incluso en modelos gratuitos; sin saldo se usan espectrograma + métricas.
+  {
+    id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', provider: 'openrouter', label: 'Nemotron 3 Nano Omni (gratis)', tag: 'recomendado',
+    inputs: { audio: true, image: true }, free: true, structuredOutput: false,
+    pricing: { inputText: 0, inputAudio: 0, output: 0, audioTokensPerSecond: 25 },
+    notes: 'Gratis: escucha audio y ve el espectrograma. Con saldo 0 solo acepta imagen + métricas (el audio exige 0,50 $ de saldo en OpenRouter). Razona antes de responder; sin JSON estricto.',
+    maxOutputTokens: 6000,
+  },
+  {
+    id: 'google/gemini-3.5-flash-lite', provider: 'openrouter', label: 'Gemini 3.5 Flash-Lite (vía OpenRouter)', tag: 'mas-barato',
+    inputs: { audio: true, image: true }, structuredOutput: true,
+    pricing: { inputText: 0.30, inputAudio: 0.30, output: 2.50, audioTokensPerSecond: 32 },
+    notes: 'El mismo modelo de Google, cobrado por OpenRouter. Necesita saldo.',
+  },
+  {
+    id: 'google/gemini-3.8-flash', provider: 'openrouter', label: 'Gemini 3.8 Flash (vía OpenRouter)', tag: 'mejor-calidad',
+    inputs: { audio: true, image: true }, structuredOutput: true,
+    pricing: { inputText: 0.75, inputAudio: 0.75, output: 3.75, audioTokensPerSecond: 32 },
+    notes: 'Escucha audio y ve el espectrograma. Necesita saldo en OpenRouter.',
+  },
+  {
+    id: 'openai/gpt-audio-mini', provider: 'openrouter', label: 'GPT Audio Mini (vía OpenRouter)',
+    inputs: { audio: true, image: false }, structuredOutput: true,
+    pricing: { inputText: 0.60, inputAudio: 0.60, output: 2.40, audioTokensPerSecond: 10 },
+    notes: 'Escucha audio; no acepta imágenes. Necesita saldo.',
+  },
+  {
+    id: 'google/gemini-3.1-pro-preview', provider: 'openrouter', label: 'Gemini 3.1 Pro (vía OpenRouter)', tag: 'preview',
+    inputs: { audio: true, image: true }, structuredOutput: true,
+    pricing: { inputText: 2.0, inputAudio: 2.0, output: 12.0, audioTokensPerSecond: 32 },
+    notes: 'Mayor razonamiento, en preview. Necesita saldo.',
+  },
 ];
 
-export const PROVIDER_LABELS: Record<ProviderId, string> = { gemini: 'Google Gemini', openai: 'OpenAI', anthropic: 'Anthropic Claude' };
+export const PROVIDER_LABELS: Record<ProviderId, string> = { gemini: 'Google Gemini', openai: 'OpenAI', anthropic: 'Anthropic Claude', openrouter: 'OpenRouter' };
 
 export const modelsFor = (provider: ProviderId): ModelInfo[] => MODEL_CATALOG.filter((m) => m.provider === provider);
 export const findModel = (id: string): ModelInfo | undefined => MODEL_CATALOG.find((m) => m.id === id);

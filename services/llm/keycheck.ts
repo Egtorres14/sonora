@@ -21,6 +21,16 @@ export const testKey = async (provider: ProviderId, key: string, signal?: AbortS
       await ai.models.generateContent({ model: 'gemini-3.5-flash-lite', contents: 'ok', config: { maxOutputTokens: 1, abortSignal: signal } });
       return { ok: true, message: `Clave válida y con saldo${first?.name ? ` · ${String(first.name).replace('models/', '')} disponible` : ''}.` };
     }
+    if (provider === 'openrouter') {
+      const headers = { Authorization: `Bearer ${apiKey}` };
+      const keyRes = await fetch('https://openrouter.ai/api/v1/key', { headers, signal });
+      if (keyRes.status === 401 || keyRes.status === 403) return { ok: false, message: 'La clave de OpenRouter no es válida.' };
+      if (!keyRes.ok) throw new Error(`OpenRouter respondió ${keyRes.status}.`);
+      const credits = await fetch('https://openrouter.ai/api/v1/credits', { headers, signal }).then((r) => (r.ok ? r.json() : null)).catch(() => null) as { data?: { total_credits?: number; total_usage?: number } } | null;
+      const balance = credits?.data ? (credits.data.total_credits ?? 0) - (credits.data.total_usage ?? 0) : null;
+      if (balance !== null && balance < 0.5) return { ok: true, message: `Clave válida · saldo ${balance.toFixed(2)} $. Sin 0,50 $ OpenRouter no acepta audio: funcionan los modelos gratuitos con espectrograma + métricas y el redactor de feedback.` };
+      return { ok: true, message: balance === null ? 'Clave válida.' : `Clave válida y con saldo (${balance.toFixed(2)} $).` };
+    }
     if (provider === 'openai') {
       const { default: OpenAI } = await import('openai');
       const client = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
