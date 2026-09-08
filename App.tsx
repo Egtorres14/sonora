@@ -1,9 +1,9 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Activity, ArrowUpRight, BookOpen, ChevronRight, CircleHelp, Database, FolderCheck, Headphones, Layers3, LoaderCircle, LockKeyhole, LogOut, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import useWorkspace, { type WorkspaceView } from './components/workspace/useWorkspace';
 import UploadArea from './components/workspace/UploadArea';
 import AnalysisView from './components/workspace/AnalysisView';
-import LibraryView from './components/workspace/LibraryView';
+import LibraryView, { DEFAULT_LIBRARY_STATE } from './components/workspace/LibraryView';
 import RoleGate from './components/RoleGate';
 import GuideView, { type GuideRole } from './components/GuideView';
 const LearningView = lazy(() => import('./components/workspace/LearningView'));
@@ -32,6 +32,8 @@ const STUDENT_NAV = [
 export default function App() {
   const w = useWorkspace();
   const [preGuide, setPreGuide] = useState<GuideRole | null>(null);
+  const [libraryState, setLibraryState] = useState(DEFAULT_LIBRARY_STATE);
+  useEffect(() => { setLibraryState(DEFAULT_LIBRARY_STATE); }, [w.session?.enteredAt]);
   if (!w.session) return preGuide ? <div className="guide-standalone"><GuideView role={preGuide} onRole={setPreGuide} onBack={() => setPreGuide(null)} backLabel="Volver a la entrada" /></div> : <RoleGate onEnter={w.enter} onGuide={() => setPreGuide('student')} />;
   const teacher = w.isTeacher;
   const nav = teacher ? TEACHER_NAV : STUDENT_NAV;
@@ -48,7 +50,7 @@ export default function App() {
       {w.notice && <div className="notice-banner" role="status"><span>{w.notice}</span><button className="icon-button" aria-label="Cerrar aviso" onClick={() => w.setNotice('')}><X size={15} /></button></div>}
       {w.busy && <div className="analysis-progress" role="status"><LoaderCircle className="spin" size={21} /><div><b>Trabajando en tu navegador</b><p>{w.stage}</p></div><button className="text-button" onClick={w.cancel}>Cancelar</button></div>}
       {w.view === 'lab' && (w.selected ? <AnalysisView record={w.selected} analyzed={w.analyzed} audioUrl={w.audioUrl} records={w.records} model={modelStale ? null : w.model} rubric={w.rubric} engines={w.engines} teacher={teacher} onChange={patch => w.change(w.selected!.id, patch)} onBack={() => w.setView('library')} onEngines={() => w.setView('engines')} referenceId={w.referenceId} referenceUrl={w.referenceUrl} onReference={w.reference} /> : <UploadArea busy={w.busy} onFiles={w.files} onDemo={w.demo} student={teacher ? undefined : studentName} />)}
-      {w.view === 'library' && <LibraryView records={w.records} busy={w.busy} rubric={w.rubric} teacher={teacher} student={studentName} onSelect={w.select} onRemove={w.remove} onFiles={w.files} onDemo={w.demo} onImport={w.importFile} />}
+      {w.view === 'library' && <LibraryView state={libraryState} onState={setLibraryState} records={w.records} busy={w.busy} rubric={w.rubric} teacher={teacher} student={studentName} onSelect={w.select} onRemove={w.remove} onFiles={w.files} onDemo={w.demo} onImport={w.importFile} />}
       {w.view === 'engines' && teacher && <Suspense fallback={<div className="empty-table">Cargando motores…</div>}><EnginesView settings={w.engines} onSave={w.setEngines} onChange={w.updateEngines} submissions={w.allRecords.filter(r => r.student).length} /></Suspense>}
       {w.view === 'rubric' && teacher && <Suspense fallback={<div className="empty-table">Cargando rúbrica…</div>}><RubricEditor rubric={w.rubric} onSave={w.setRubric} onReset={w.restoreRubric} /></Suspense>}
       {w.view === 'corpus' && teacher && <Suspense fallback={<div className="empty-table">Cargando muestras…</div>}><CorpusView libraryIds={new Set(w.allRecords.map(r => r.id))} model={w.model} busy={w.busy} onImport={w.importCorpus} /></Suspense>}

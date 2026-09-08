@@ -224,3 +224,24 @@ button.tl-dot, button.tl-range { cursor: pointer; }
 /* --- Borrador de feedback --- */
 .draft-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 .role-guide { margin: 26px 0 6px; }
+
+/* Biblioteca: controles próximos a la tabla, con la misma navegación en ambos extremos. */
+.pagination-top { scroll-margin-top: 24px; }
+.library-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px 20px; padding: 14px 0; }
+.pagination-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; color: var(--muted); font-size: 12px; }
+.pagination-summary b { color: var(--ink); font-weight: 500; }
+.pagination-summary label { display: inline-flex; align-items: center; gap: 8px; }
+.pagination-summary select { min-height: 44px; padding: 6px 10px; font-size: 13px; }
+.pagination-controls, .pagination-item { display: flex; align-items: center; gap: 5px; }
+.pagination-controls button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); background: #1c241b; font-family: var(--mono); font-size: 12px; }
+.pagination-controls button:hover:not(:disabled) { border-color: #758b60; color: var(--ink); }
+.pagination-controls button[aria-current=page] { background: var(--accent); border-color: var(--accent); color: #182214; }
+.pagination-controls button:disabled { opacity: .35; }
+.pagination-gap { color: var(--muted); padding: 0 3px; }
+@media (max-width:650px) {
+  .pagination-summary { width: 100%; justify-content: space-between; font-size: 11px; }
+  .pagination-controls { width: 100%; justify-content: center; flex-wrap: wrap; gap: 3px; }
+  .pagination-item { gap: 3px; }
+  .pagination-controls button { min-width: 44px; }
+  .pagination-gap { padding: 0 1px; }
+}
