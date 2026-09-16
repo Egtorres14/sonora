@@ -6,6 +6,7 @@
 import { EFFECTS, calculateReview, type ReviewRecord } from './review';
 import { DEFAULT_RUBRIC, type RubricConfig, type ToolId } from './scoring/rubric';
 import { formatTimestamp } from './audio/features';
+import { marksFor } from './marks';
 
 export type EvidenceSource = 'medido' | 'profesor' | 'modelo';
 export interface TimeRange { start: number; end?: number }
@@ -84,10 +85,17 @@ export const buildEvidence = (record: ReviewRecord, rubric: RubricConfig = DEFAU
     const label = record.labels[effect.id];
     if (label === 'unknown') continue;
     const line = score.creative.lines.find((l) => l.criterio.toLowerCase() === effect.label.toLowerCase());
-    const ranges = parseTimeRanges(record.evidence[effect.id] || '');
+    const criterio = `${effect.label} ${label === 'present' ? 'confirmado' : 'ausente'}`;
     const detalle = record.evidence[effect.id]?.trim() || (label === 'present' ? 'Uso confirmado' : 'Ausencia confirmada');
-    if (ranges.length) ranges.forEach((r, i) => items.push({ id: `teacher-${effect.id}-${i}`, time: r.start, end: r.end, criterio: `${effect.label} ${label === 'present' ? 'confirmado' : 'ausente'}`, source: 'profesor', detalle, puntos: i === 0 ? line?.puntos ?? 0 : null, effect: effect.id }));
-    else items.push({ id: `teacher-${effect.id}`, criterio: `${effect.label} ${label === 'present' ? 'confirmado' : 'ausente'}`, source: 'profesor', detalle, puntos: line?.puntos ?? 0, effect: effect.id });
+    const marks = marksFor(record, effect.id);
+    // Las marcas mandan; el texto libre solo se parsea cuando no hay ninguna.
+    if (marks.length) {
+      marks.forEach((m, i) => items.push({ id: `mark-${m.id}`, time: m.start, end: m.end, criterio, source: 'profesor', detalle: m.note.trim() || detalle, puntos: i === 0 ? line?.puntos ?? 0 : null, effect: effect.id }));
+      continue;
+    }
+    const ranges = parseTimeRanges(record.evidence[effect.id] || '');
+    if (ranges.length) ranges.forEach((r, i) => items.push({ id: `teacher-${effect.id}-${i}`, time: r.start, end: r.end, criterio, source: 'profesor', detalle, puntos: i === 0 ? line?.puntos ?? 0 : null, effect: effect.id }));
+    else items.push({ id: `teacher-${effect.id}`, criterio, source: 'profesor', detalle, puntos: line?.puntos ?? 0, effect: effect.id });
   }
   if (showsTeacher && record.overprocessing !== 'unknown') {
     const line = score.creative.lines.find((l) => l.criterio === 'Sobreprocesamiento');
