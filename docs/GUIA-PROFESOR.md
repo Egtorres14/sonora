@@ -93,6 +93,10 @@ Usa la caja **Probar un nombre** antes de guardar: te dice si un nombre puntuar�
 - **Modelo local** muestra la cobertura de tu colección y permite reentrenar con tus propias muestras verificadas. Requisitos mínimos por herramienta: 12 muestras reales, 6 orígenes y ambas clases en al menos 3 orígenes.
 - La validación separa por grabación de origen: ninguna variante se evalúa con un modelo que la haya visto. Las cifras describen el corpus, no tus trabajos reales; para eso, añade y etiqueta grabaciones de tu clase.
 
+### Muestras de una versión anterior
+
+Cuando la aplicación mejora la forma de medir, las muestras medidas antes siguen valiendo para la nota, pero no entran en el entrenamiento hasta medirse de nuevo. En **Modelo local** verás cuántas hay y un botón para reanalizar las que tienen audio guardado; también basta con abrir una de ellas. Las importadas sin audio se quedan como están: vuelve a subir el original y se reconocerá por su huella.
+
 ## 9. Exportar y contribuir
 
 - **CSV** desde Biblioteca: una fila por archivo con estudiante, fecha, etiquetas, nota y tipo de nota. Se abre en Excel o Sheets.

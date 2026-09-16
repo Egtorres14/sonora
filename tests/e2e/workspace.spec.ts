@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { encodeWav16 } from '../../services/audio/wav';
 import { decodePcm } from '../../services/audio/wav';
-import { extractFeatures } from '../../services/audio/features';
+import { extractFeatures, FEATURES_VERSION } from '../../services/audio/features';
 import { createReview } from '../../services/review';
 import { exportDataset } from '../../services/library';
 
@@ -377,4 +377,66 @@ test('el formato de nombre que exige el profesor se enseña, se prueba y puntúa
   const nameLine = page.locator('.score-details > div', { hasText: 'Nombre de archivo' });
   await expect(nameLine.locator('span')).toHaveText('0');
   await expect(nameLine).toContainText('no sigue el formato exigido');
+});
+
+/** Una colección exportada con un registro medido por una versión anterior del DSP, sin audio. */
+const olderCollection = () => {
+  const sr = 48000;
+  const features = extractFeatures(decodePcm(encodeWav16([new Float32Array(sr * 2)], sr))!);
+  const [major] = FEATURES_VERSION.split('.');
+  const version = `${major}.0.0`;
+  const record = createReview('e'.repeat(64), 'antigua_sin_audio.wav', { ...features, version, analysis: { ...features.analysis, version } });
+  return { name: 'antigua.json', mimeType: 'application/json', buffer: Buffer.from(exportDataset([{ ...record, sourceGroup: 'legado-01', synopsis: 'Registro de una versión anterior.' }])) };
+};
+
+test('un registro de una versión anterior sin audio puntúa, se señala y no entrena', async ({ page }) => {
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await page.getByLabel('Importar colección JSON').setInputFiles(olderCollection());
+  await expect(page.locator('.notice-banner')).toContainText('1 registros importados');
+  await expect(page.locator('tbody tr')).toContainText('reanálisis pendiente');
+
+  await page.getByRole('button', { name: /Modelo local/ }).click();
+  await expect(page.getByTestId('outdated-note')).toContainText('1 muestra(s) en una versión anterior');
+  await expect(page.getByRole('button', { name: 'Reanalizar las que tienen audio' })).toBeDisabled();
+
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await page.getByRole('button', { name: /^antigua_sin_audio/ }).click();
+  await expect(page.getByTestId('outdated-record')).toContainText('versión anterior');
+  await expect(page.getByTestId('final-score')).toBeVisible();
+});
+
+test('abrir un registro antiguo con audio lo reanaliza y lo pone al día', async ({ page }) => {
+  await page.getByLabel('Subir archivos de audio').setInputFiles(audio());
+  await expect(page.getByRole('heading', { name: 'campana_validacion.wav', exact: true })).toBeVisible();
+  await expect(page.locator('.workspace-topline')).not.toContainText('Guardando cambios');
+
+  // Se envejece el registro directamente en IndexedDB, como si lo hubiera medido una versión anterior.
+  await page.evaluate(([major]) => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('sonora-library-v1');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const tx = db.transaction('reviews', 'readwrite');
+      const store = tx.objectStore('reviews');
+      const all = store.getAll();
+      all.onsuccess = () => { for (const r of all.result) { r.features.version = `${major}.0.0`; r.features.analysis.version = `${major}.0.0`; store.put(r); } };
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => reject(tx.error);
+    };
+  }), [FEATURES_VERSION.split('.')[0]]);
+  await page.reload();
+
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await expect(page.locator('tbody tr')).toContainText('reanálisis pendiente');
+  await page.getByRole('button', { name: /Modelo local/ }).click();
+  await expect(page.getByRole('button', { name: 'Reanalizar las que tienen audio' })).toBeEnabled();
+
+  // Abrirla basta: el análisis que ya se hace al abrir guarda las características nuevas.
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await expect(page.getByRole('heading', { name: 'campana_validacion.wav', exact: true })).toBeVisible();
+  await expect(page.locator('.analysis-progress')).toHaveCount(0);
+  await expect(page.locator('.workspace-topline')).not.toContainText('Guardando cambios');
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await expect(page.locator('tbody tr')).not.toContainText('reanálisis pendiente');
 });
