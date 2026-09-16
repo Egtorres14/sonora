@@ -3,12 +3,13 @@ import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import type { AudioFeatures } from '../types';
 import { formatTimestamp } from '../services/audio/features';
+import { MIN_MARK_SECONDS } from '../services/marks';
 
 const PlayIcon = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5V19L19 12L8 5Z" /></svg>);
 const PauseIcon = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19H10V5H6V19ZM14 5V19H18V5H14Z" /></svg>);
 const VolumeHighIcon = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9V15H7L12 20V4L7 9H3ZM18.5 12C18.5 10.23 17.54 8.71 16 7.97V16.02C17.54 15.29 18.5 13.77 18.5 12ZM14 3.23V5.29C16.89 6.15 19 8.83 19 12C19 15.17 16.89 17.84 14 18.7V20.77C18.01 19.86 21 16.28 21 12C21 7.72 18.01 4.14 14 3.23Z"/></svg>);
 
-export interface Marker { start: number; end: number; color: string; label: string }
+export interface Marker { id?: string; start: number; end: number; color: string; label: string; editable?: boolean }
 
 interface AudioPlayerProps {
   src: string;
@@ -19,6 +20,12 @@ interface AudioPlayerProps {
   seekRef?: MutableRefObject<((time: number) => void) | null>;
   /** Tiempo de reproducción actual (para el cursor de la línea de evidencias). */
   onTime?: (time: number) => void;
+  /** Con valor, arrastrar sobre la onda crea una marca de ese color. Solo el profesor. */
+  markEditing?: { color: string } | null;
+  onMarkCreate?: (start: number, end: number) => void;
+  onMarkUpdate?: (id: string, start: number, end: number) => void;
+  /** Muestra el control de zoom: sin él no se puede marcar con precisión en un archivo largo. */
+  zoomable?: boolean;
 }
 
 const buildMarkers = (f: AudioFeatures | null): Marker[] => {
@@ -34,9 +41,14 @@ const buildMarkers = (f: AudioFeatures | null): Marker[] => {
   return m;
 };
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features, extraMarkers = [], seekRef, onTime }) => {
+const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features, extraMarkers = [], seekRef, onTime, markEditing = null, onMarkCreate, onMarkUpdate, zoomable = false }) => {
   const onTimeRef = useRef(onTime); onTimeRef.current = onTime;
-  const extraKey = extraMarkers.map((m) => `${m.start.toFixed(2)}-${m.end.toFixed(2)}-${m.label}`).join('|');
+  const onCreateRef = useRef(onMarkCreate); onCreateRef.current = onMarkCreate;
+  const onUpdateRef = useRef(onMarkUpdate); onUpdateRef.current = onMarkUpdate;
+  /** Verdadero mientras el efecto de sincronización crea regiones, para no confundirlas con un arrastre. */
+  const syncing = useRef(false);
+  const [zoom, setZoom] = useState(0); // 0 = ajustar al ancho
+  const extraKey = extraMarkers.map((m) => `${m.id ?? ''}-${m.start.toFixed(3)}-${m.end.toFixed(3)}-${m.editable ? 'e' : 'r'}-${m.label}`).join('|');
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const regionsRef = useRef<ReturnType<typeof RegionsPlugin.create> | null>(null);
@@ -90,15 +102,42 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features, extraMarkers =
   useEffect(() => {
     const ws = wavesurferRef.current, regions = regionsRef.current;
     if (!ready || !ws || !regions) return;
+    syncing.current = true;
     regions.clearRegions();
     for (const mk of [...buildMarkers(features), ...extraMarkers]) {
-      const region = regions.addRegion({ start: mk.start, end: mk.end, color: mk.color, drag: false, resize: false, content: mk.end - mk.start > 0.5 ? mk.label.split(' · ')[0] : undefined });
+      const region = regions.addRegion({ id: mk.id, start: mk.start, end: mk.end, color: mk.color, drag: !!mk.editable, resize: !!mk.editable, minLength: MIN_MARK_SECONDS, content: mk.end - mk.start > 0.5 ? mk.label.split(' · ')[0] : undefined });
       region.on('over', () => setHover(mk.label));
       region.on('leave', () => setHover(''));
-      region.on('click', (e) => { e.stopPropagation(); ws.setTime(Math.max(0, mk.start - 0.5)); void ws.play().catch(() => setError('No se pudo iniciar la reproducción.')); });
+      // `update-end` solo salta al soltar: arrastrar no dispara una escritura por píxel.
+      if (mk.editable && mk.id) region.on('update-end', () => onUpdateRef.current?.(mk.id!, region.start, region.end));
+      else region.on('click', (e) => { e.stopPropagation(); ws.setTime(Math.max(0, mk.start - 0.5)); void ws.play().catch(() => setError('No se pudo iniciar la reproducción.')); });
     }
+    syncing.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, features, extraKey]);
+
+  // Modo marcado: arrastrar sobre la onda crea una marca. La región provisional se borra y la
+  // definitiva la vuelve a pintar el efecto de sincronización desde el estado del registro.
+  useEffect(() => {
+    const regions = regionsRef.current;
+    if (!ready || !regions || !markEditing) return;
+    const disable = regions.enableDragSelection({ color: markEditing.color, drag: false, resize: false, minLength: MIN_MARK_SECONDS }, 3);
+    const off = regions.on('region-created', (region) => {
+      if (syncing.current) return;
+      const { start, end } = region;
+      region.remove();
+      onCreateRef.current?.(start, end);
+    });
+    return () => { disable(); off(); };
+  }, [ready, markEditing]);
+
+  useEffect(() => {
+    const ws = wavesurferRef.current;
+    if (!ready || !ws || !zoomable) return;
+    const width = waveformRef.current?.clientWidth ?? 0;
+    const fit = width && ws.getDuration() ? width / ws.getDuration() : 1;
+    ws.zoom(Math.max(1, zoom || fit));
+  }, [ready, zoom, zoomable]);
 
   const togglePlayPause = useCallback(() => { void wavesurferRef.current?.playPause().catch(() => setError('No se pudo iniciar la reproducción.')); }, []);
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,6 +149,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, features, extraMarkers =
   return (
     <div className="bg-brand-bg/50 p-4 rounded-lg flex flex-col space-y-3">
       <div ref={waveformRef} className="w-full h-32 cursor-pointer" />
+      {zoomable && <div className="zoom-row">
+        <span>Zoom</span>
+        {[0, 50, 100, 200, 400].map((level) => (
+          <button key={level} type="button" aria-pressed={zoom === level} className={zoom === level ? 'selected' : ''} onClick={() => setZoom(level)}>
+            {level === 0 ? 'Ajustar' : `${level} px/s`}
+          </button>
+        ))}
+      </div>}
       {error && <p className="error-text" role="alert">{error}</p>}
       <div className="flex items-center justify-between text-xs text-brand-text-secondary min-h-[1.25rem] gap-3 flex-wrap">
         <span className="flex gap-3 flex-wrap">
