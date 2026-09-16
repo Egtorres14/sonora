@@ -167,21 +167,23 @@ export default function useWorkspace() {
     const withAudio = outdated.filter(r => audioIds.has(r.id));
     if (!withAudio.length) { setNotice(`${outdated.length} muestra(s) en una versión anterior, ninguna con audio guardado: siguen puntuando, pero no entrenan hasta volver a subir el original.`); return; }
     const controller = new AbortController(); abort.current = controller; setBusy(true); setError(''); setNotice('');
-    let done = 0;
+    const errors: string[] = []; let done = 0;
     try {
       for (const [i, record] of withAudio.entries()) {
         if (controller.signal.aborted) break;
-        const audio = await library.audio(record.id);
-        if (!audio) continue;
-        const result = await analyzeFile(new File([audio], record.name, { type: audio.type }), text => setStage(`${i + 1}/${withAudio.length} · ${record.name} · ${text}`), controller.signal);
-        if (controller.signal.aborted) break;
-        refreshFeatures(record.id, result.features); done++;
+        try {
+          const audio = await library.audio(record.id);
+          if (!audio) continue;
+          const result = await analyzeFile(new File([audio], record.name, { type: audio.type }), text => setStage(`${i + 1}/${withAudio.length} · ${record.name} · ${text}`), controller.signal);
+          if (controller.signal.aborted) break;
+          refreshFeatures(record.id, result.features); done++;
+        } catch (e) { if (!controller.signal.aborted) errors.push(`${record.name}: ${e instanceof Error ? e.message : 'No se pudo reanalizar.'}`); }
       }
       await saveQueue.flush(); await refresh();
       const skipped = outdated.length - withAudio.length;
-      setNotice(`${done} muestra(s) reanalizada(s)${skipped ? ` · ${skipped} sin audio, siguen puntuables` : ''}${controller.signal.aborted ? ' · cancelado' : ''}.`);
-    } catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'No se pudo reanalizar.'); }
-    finally { setBusy(false); setStage(''); abort.current = null; }
+      setNotice(`${done} muestra(s) reanalizada(s)${skipped ? ` · ${skipped} sin audio, siguen puntuables` : ''}${errors.length ? ` · ${errors.length} con error` : ''}${controller.signal.aborted ? ' · cancelado' : ''}.`);
+    } catch (e) { if (!controller.signal.aborted) errors.push(e instanceof Error ? e.message : 'No se pudo reanalizar.'); }
+    finally { setError(errors.join('\n')); setBusy(false); setStage(''); abort.current = null; }
   };
   const demo = (id: DemoId) => { if (!busy && isTeacher) void files([createDemo(id)], 'synthetic'); };
   const remove = async (record: ReviewRecord) => {
