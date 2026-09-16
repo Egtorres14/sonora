@@ -1,4 +1,5 @@
 import type { AudioFeatures, AudioEvaluation } from '../types';
+import type { AudioMark } from './marks';
 import { DEFAULT_RUBRIC, scoreFormal, scoreTechnical, type RubricConfig, type ToolId } from './scoring/rubric';
 
 export const EFFECTS: { id: ToolId; label: string; hint: string }[] = [
@@ -36,6 +37,8 @@ export interface ReviewRecord {
   student?: { name: string; submittedAt: string };
   /** El profesor ha publicado la nota y el feedback para el estudiante. */
   published?: boolean;
+  /** Dónde ocurre cada herramienta, marcado por el profesor sobre la onda. */
+  marks?: AudioMark[];
   /** Segunda opinión pedida por el profesor. No la ve el estudiante. */
   ai?: AudioEvaluation;
   /** Lectura orientativa pedida por el estudiante sobre su propia entrega. */
