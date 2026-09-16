@@ -17,7 +17,8 @@ const points = z.number().finite().min(0).max(100);
 const TOOLS: ToolId[] = ['pitch_shift', 'time_stretch', 'reversa', 'filtros', 'loops'];
 
 export const StoredRubricSchema = z.object({
-  formal: z.object({ synopsisPoints: points, fileNamePoints: points, genericNamePatterns: z.array(z.string().max(200)).max(100), minSynopsisChars: z.number().int().min(0).max(5000) }),
+  // fileNamePattern es opcional: las rúbricas guardadas antes de existir siguen cargando.
+  formal: z.object({ synopsisPoints: points, fileNamePoints: points, genericNamePatterns: z.array(z.string().max(200)).max(100), fileNamePattern: z.string().max(200).optional(), minSynopsisChars: z.number().int().min(0).max(5000) }),
   technical: z.object({
     maxPoints: points,
     requiredSampleRate: z.number().int().min(8000).max(384000).nullable(),
@@ -56,7 +57,7 @@ export const fromStored = (raw: unknown): RubricConfig => {
   if (s.technical.duration && s.technical.duration.minSec > s.technical.duration.maxSec) throw new Error('La duración mínima no puede superar a la máxima.');
   const config: RubricConfig = {
     totalPoints: rubricTotal(s),
-    formal: { ...s.formal },
+    formal: { ...s.formal, fileNamePattern: s.formal.fileNamePattern ?? '' },
     technical: { ...s.technical, clickTiers: tiers, duration: s.technical.duration },
     creative: { ...s.creative },
     bonus: { ...s.bonus },

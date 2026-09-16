@@ -8,6 +8,7 @@
  *    (el modelo dice qué escuchó y con qué confianza; la aritmética la hace el código).
  */
 import type { AudioFeatures } from '../audio/features';
+import { checkFileName } from '../filename-rule';
 
 export type ToolId = 'pitch_shift' | 'reversa' | 'time_stretch' | 'loops' | 'filtros';
 export type OverprocessingLevel = 'Leve' | 'Moderado' | 'Severo' | 'N/A';
@@ -18,6 +19,8 @@ export interface RubricConfig {
     synopsisPoints: number;
     fileNamePoints: number;
     genericNamePatterns: string[]; // regex (case-insensitive) que marcan nombres genéricos
+    /** Formato exigido por el profesor (services/filename-rule.ts). Vacío: solo se descartan los nombres genéricos. */
+    fileNamePattern: string;
     minSynopsisChars: number;
   };
   technical: {
@@ -47,6 +50,7 @@ export const DEFAULT_RUBRIC: RubricConfig = {
     synopsisPoints: 2.5,
     fileNamePoints: 2.5,
     genericNamePatterns: ['^audio\\d*$', '^proyecto\\s*\\d*$', '^project\\s*\\d*$', '^untitled', '^sin\\s*t[ií]tulo', '^track\\s*\\d*$', '^pista\\s*\\d*$', '^bounce', '^export', '^mix\\s*\\d*$', '^final\\d*$', '^test\\d*$', '^prueba\\d*$', '^new\\s*recording', '^grabaci[oó]n', '^rec\\d*$', '^\\d+$'],
+    fileNamePattern: '',
     minSynopsisChars: 20,
   },
   technical: {
@@ -78,17 +82,27 @@ export const isGenericFileName = (fileName: string, patterns: string[]): boolean
   return patterns.some((p) => new RegExp(p, 'i').test(base));
 };
 
-export const scoreFormal = (fileName: string, synopsis: string, rubric: RubricConfig = DEFAULT_RUBRIC): FormalScore => {
+/**
+ * Con formato exigido se comprueba la plantilla del profesor y, si se conoce, que las palabras del
+ * nombre sean del estudiante. Sin formato, se mantiene la lista de nombres genéricos de siempre.
+ */
+export const checkRubricFileName = (fileName: string, formal: { fileNamePattern?: string; genericNamePatterns: string[] }, studentName?: string) => {
+  if (formal.fileNamePattern?.trim()) return checkFileName(fileName, formal.fileNamePattern, studentName);
+  const generic = isGenericFileName(fileName, formal.genericNamePatterns);
+  return { ok: !generic, reason: generic ? `"${fileName}" coincide con un patrón de nombre genérico.` : `"${fileName}" es un nombre descriptivo.` };
+};
+
+export const scoreFormal = (fileName: string, synopsis: string, rubric: RubricConfig = DEFAULT_RUBRIC, studentName?: string): FormalScore => {
   const hasSynopsis = synopsis.trim().length >= rubric.formal.minSynopsisChars;
-  const generic = isGenericFileName(fileName, rubric.formal.genericNamePatterns);
+  const name = checkRubricFileName(fileName, rubric.formal, studentName);
   const lines: ScoreLine[] = [
     {
       criterio: 'Presencia de sinopsis', puntos: hasSynopsis ? rubric.formal.synopsisPoints : 0, maximo: rubric.formal.synopsisPoints, fuente: 'formal',
       detalle: hasSynopsis ? `Sinopsis presente (${synopsis.trim().length} caracteres).` : `Sinopsis ausente o demasiado corta (mínimo ${rubric.formal.minSynopsisChars} caracteres).`,
     },
     {
-      criterio: 'Nombre de archivo descriptivo', puntos: generic ? 0 : rubric.formal.fileNamePoints, maximo: rubric.formal.fileNamePoints, fuente: 'formal',
-      detalle: generic ? `"${fileName}" coincide con un patrón de nombre genérico.` : `"${fileName}" es un nombre descriptivo.`,
+      criterio: 'Nombre de archivo', puntos: name.ok ? rubric.formal.fileNamePoints : 0, maximo: rubric.formal.fileNamePoints, fuente: 'formal',
+      detalle: name.reason,
     },
   ];
   return { total: lines.reduce((s, l) => s + l.puntos, 0), max: rubric.formal.synopsisPoints + rubric.formal.fileNamePoints, lines };

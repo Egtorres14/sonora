@@ -68,7 +68,8 @@ export const updateReview = (record: ReviewRecord, patch: Partial<ReviewRecord>,
 };
 
 export const calculateReview = (record: ReviewRecord, r: RubricConfig = DEFAULT_RUBRIC) => {
-  const formal = scoreFormal(record.name, record.synopsis, r);
+  // Con el nombre del estudiante, el formato exigido comprueba además de quién es la entrega.
+  const formal = scoreFormal(record.name, record.synopsis, r, record.student?.name);
   const technical = scoreTechnical(record.features, r);
   const pending: string[] = [];
   let creativeTotal = r.creative.maxPoints;
