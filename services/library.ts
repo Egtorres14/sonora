@@ -30,6 +30,8 @@ export const createLibrary = (name = 'sonora-library-v1') => {
     async list() { return (await (await connect()).getAll('reviews')).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); },
     async get(id: string) { return (await connect()).get('reviews', id); },
     async audio(id: string) { return (await connect()).get('audio', id); },
+    /** Ids con audio guardado: solo esos se pueden reanalizar. */
+    async audioIds() { return (await connect()).getAllKeys('audio'); },
     async save(record: ReviewRecord, audio?: Blob) {
       const db = await connect();
       const tx = db.transaction(['reviews', 'audio'], 'readwrite');

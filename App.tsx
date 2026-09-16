@@ -57,7 +57,7 @@ export default function App() {
       {w.view === 'rubric' && teacher && <Suspense fallback={<div className="empty-table">Cargando rúbrica…</div>}><RubricEditor rubric={w.rubric} onSave={w.setRubric} onReset={w.restoreRubric} /></Suspense>}
       {w.view === 'corpus' && teacher && <Suspense fallback={<div className="empty-table">Cargando muestras…</div>}><CorpusView libraryIds={new Set(w.allRecords.map(r => r.id))} model={w.model} busy={w.busy} onImport={w.importCorpus} /></Suspense>}
       {w.view === 'guide' && <GuideView role={teacher ? 'teacher' : 'student'} />}
-      {w.view === 'learning' && teacher && <Suspense fallback={<div className="empty-table">Cargando laboratorio de aprendizaje…</div>}><LearningView records={w.allRecords} model={w.model} history={w.modelHistory} stale={modelStale} onModel={w.saveModel} onLibrary={() => w.setView('library')} /></Suspense>}
+      {w.view === 'learning' && teacher && <Suspense fallback={<div className="empty-table">Cargando laboratorio de aprendizaje…</div>}><LearningView records={w.allRecords} model={w.model} history={w.modelHistory} stale={modelStale} audioIds={w.audioIds} reanalyzing={w.busy} onReanalyze={w.reanalyze} onModel={w.saveModel} onLibrary={() => w.setView('library')} /></Suspense>}
       <footer className="workspace-footer"><span>SONORA <span>Hecho para escuchar con criterio.</span></span>{teacher && <button className="text-button" onClick={() => w.setView('learning')}><CircleHelp size={14} /> Sobre el método</button>}</footer>
     </main></div>
   </div>;
