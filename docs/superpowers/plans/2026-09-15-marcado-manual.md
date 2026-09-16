@@ -919,5 +919,5 @@ git commit -m "Pruebas de navegador del marcado manual y documentación"
 
 - **No inventes campos nuevos en `ReviewRecord`.** Todo lo que necesita el marcado cabe en `marks`.
 - **No toques `changesTraining`.** Marcar no debe caducar el modelo local; la etiqueta propuesta sí lo hace, y eso es correcto porque cambia lo que se entrena.
-- **No conviertas las marcas en entrada del modelo local.** Eso es el bloque D y depende de una medición que está en curso: el resultado preliminar apunta a que la unidad útil para entrenar ronda los 8 segundos, no los milisegundos.
+- **No conviertas las marcas en entrada del modelo local.** Eso es el bloque D. La medición ya cerrada (`scripts/experiments/segment-vs-file.ts`, 450 archivos, 50 orígenes) dice que entrenar por tramos gana en **loops** con ventanas de 5 s —94 % de exactitud equilibrada localizando, frente al 77 % del modelo por archivo— y **pierde en reversa** con todas las ventanas probadas. No hay un mecanismo único para las cinco herramientas.
 - Si una prueba de navegador resulta frágil, **dilo en el test** con un comentario; no la borres ni la marques como omitida en silencio.
