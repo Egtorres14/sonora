@@ -262,3 +262,27 @@ button.tl-dot, button.tl-range { cursor: pointer; }
 .crash-screen .toolbar { margin-top: 22px; flex-wrap: wrap; gap: 10px; }
 .crash-details { margin-top: 22px; font-size: 11px; color: var(--muted); }
 .crash-details pre { margin-top: 10px; padding: 12px; border-radius: 5px; background: #1a2118; font-family: var(--mono); font-size: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* --- Marcado manual sobre la onda --- */
+.zoom-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+.zoom-row button { min-height: 32px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 4px; background: #1c241b; color: var(--muted); font-family: var(--mono); font-size: 10px; }
+.zoom-row button.selected { background: var(--accent); border-color: var(--accent); color: #182214; }
+.mark-editor { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.mark-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.mark-toolbar select { min-height: 40px; }
+.mark-toolbar small { flex: 1 1 220px; }
+.mark-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.mark-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 5px; background: #1c241b; }
+.mark-swatch { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+.mark-effect { font-size: 11px; min-width: 96px; }
+.mark-time { width: 84px; min-height: 36px; font-family: var(--mono); font-size: 11px; }
+.mark-range { font-size: 10px; color: var(--muted); }
+.mark-note { flex: 1 1 200px; min-height: 36px; font-size: 11px; }
+.mark-count { margin-left: 8px; color: var(--accent); }
+@media (max-width:650px) {
+  .mark-toolbar { gap: 8px; }
+  .mark-toolbar .button { flex: 1 1 100%; }
+  .mark-row { gap: 7px; }
+  .mark-effect { min-width: 0; }
+  .mark-note { flex: 1 1 100%; }
+}
