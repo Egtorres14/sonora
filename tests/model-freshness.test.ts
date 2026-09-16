@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { changesTraining, createReview, updateReview, type ReviewRecord } from '../services/review';
 import { isModelStale, summarizeModel } from '../services/learning/model';
+import { DESCRIPTOR_VERSION } from '../services/learning/descriptors';
 import { extractFeatures } from '../services/audio/features';
 import { decodePcm, encodeWav16 } from '../services/audio/wav';
 import type { LocalModel } from '../services/learning/types';
@@ -9,7 +10,7 @@ const features = extractFeatures(decodePcm(encodeWav16([new Float32Array(48000)]
 const record = (id = 'd'.repeat(64)): ReviewRecord => ({ ...createReview(id, 'muestra.wav', features), sourceGroup: 'campana-01' });
 
 const modelTrainedAfter = (records: ReviewRecord[]): LocalModel => ({
-  version: '1', featureVersion: 'x', trainedAt: new Date(Date.now() + 1000).toISOString(),
+  version: '1', featureVersion: DESCRIPTOR_VERSION, trainedAt: new Date(Date.now() + 1000).toISOString(),
   trainingSampleIds: records.map(r => r.id), trainingGroupIds: ['campana-01'], effects: {},
 });
 
@@ -55,6 +56,12 @@ describe('Qué invalida un entrenamiento', () => {
 
   it('sin modelo no hay nada que caducar', () => {
     expect(isModelStale(null, [record()])).toBe(false);
+  });
+
+  it('caduca si el modelo se entrenó con otra versión de las características, aunque nada más haya cambiado', () => {
+    const base = record();
+    const model: LocalModel = { ...modelTrainedAfter([base]), featureVersion: '0.0.0/otra' };
+    expect(isModelStale(model, [base])).toBe(true);
   });
 
   it('usa updatedAt en los registros anteriores al campo de entrenamiento', () => {

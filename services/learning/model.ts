@@ -123,12 +123,16 @@ export const summarizeModel = (model: LocalModel): ModelSnapshot => ({
 });
 
 /**
- * ¿Hay que reentrenar? Solo si una muestra usada en el entrenamiento ha desaparecido o ha cambiado
- * en algo que el modelo aprende. Escribir el feedback de un estudiante no invalida nada, y por eso
- * se mira `trainingUpdatedAt` (con `updatedAt` de respaldo en los registros antiguos).
+ * ¿Hay que reentrenar? Sí si el modelo se entrenó con una versión de las características distinta de
+ * la actual (`DESCRIPTOR_VERSION`): `predictLocalModel` lo rechazaría igualmente, así que mejor
+ * avisarlo aquí como caducado que dejar el panel de clasificación vacío sin explicación. También, si
+ * una muestra usada en el entrenamiento ha desaparecido o ha cambiado en algo que el modelo aprende.
+ * Escribir el feedback de un estudiante no invalida nada, y por eso se mira `trainingUpdatedAt` (con
+ * `updatedAt` de respaldo en los registros antiguos).
  */
 export const isModelStale = (model: LocalModel | null, records: ReviewRecord[]): boolean => {
   if (!model) return false;
+  if (model.featureVersion !== DESCRIPTOR_VERSION) return true;
   const byId = new Map(records.map(r => [r.id, r]));
   return model.trainingSampleIds.some(id => {
     const record = byId.get(id);

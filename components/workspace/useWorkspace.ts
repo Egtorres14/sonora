@@ -90,6 +90,8 @@ export default function useWorkspace() {
    * Guarda una medición repetida sobre el mismo audio. No es una edición: no pasa por el filtro de
    * campos del estudiante y la puede provocar cualquier rol al abrir la muestra. Al cambiar
    * `features`, `updateReview` mueve `trainingUpdatedAt` y el modelo caduca, que es lo correcto.
+   * Puede cambiar la parte técnica calculada de una nota ya publicada sin que nadie lo pida, así que
+   * se avisa siempre con un aviso: la escritura nunca es invisible.
    */
   const refreshFeatures = (id: string, features: ReviewRecord['features']) => {
     const current = recordsRef.current.find(r => r.id === id);
@@ -97,6 +99,7 @@ export default function useWorkspace() {
     const next = updateReview(current, { features }, maxManual);
     replaceRecords(recordsRef.current.map(r => r.id === id ? next : r));
     saveQueue.queue(next);
+    setNotice('Esta muestra se ha vuelto a medir con la versión actual de las características.');
   };
   const select = async (record: ReviewRecord) => {
     if (abort.current) return;
@@ -108,7 +111,11 @@ export default function useWorkspace() {
       const audio = await library.audio(record.id);
       if (audio) {
         const result = await analyzeFile(new File([audio], record.name, { type: audio.type }), setStage, controller.signal);
-        if (!controller.signal.aborted) { setBlob(playbackBlob(audio, result)); setAnalyzed(result); refreshFeatures(record.id, result.features); }
+        if (!controller.signal.aborted) {
+          setBlob(playbackBlob(audio, result)); setAnalyzed(result);
+          // Una nota publicada no debe moverse bajo el estudiante; el profesor pone el registro al día al abrirlo o por lotes.
+          if (isTeacher || !record.published) refreshFeatures(record.id, result.features);
+        }
       }
     } catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'No se pudo abrir la muestra.'); }
     finally { setBusy(false); setStage(''); abort.current = null; }

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { encodeWav16 } from '../../services/audio/wav';
 import { decodePcm } from '../../services/audio/wav';
@@ -405,25 +405,27 @@ test('un registro de una versión anterior sin audio puntúa, se señala y no en
   await expect(page.getByTestId('final-score')).toBeVisible();
 });
 
+/** Envejece los registros guardados en IndexedDB, como si los hubiera medido una versión anterior. */
+const ageStoredRecords = (page: Page) => page.evaluate(([major]) => new Promise<void>((resolve, reject) => {
+  const open = indexedDB.open('sonora-library-v1');
+  open.onerror = () => reject(open.error);
+  open.onsuccess = () => {
+    const db = open.result;
+    const tx = db.transaction('reviews', 'readwrite');
+    const store = tx.objectStore('reviews');
+    const all = store.getAll();
+    all.onsuccess = () => { for (const r of all.result) { r.features.version = `${major}.0.0`; r.features.analysis.version = `${major}.0.0`; store.put(r); } };
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => reject(tx.error);
+  };
+}), [FEATURES_VERSION.split('.')[0]]);
+
 test('abrir un registro antiguo con audio lo reanaliza y lo pone al día', async ({ page }) => {
   await page.getByLabel('Subir archivos de audio').setInputFiles(audio());
   await expect(page.getByRole('heading', { name: 'campana_validacion.wav', exact: true })).toBeVisible();
   await expect(page.locator('.workspace-topline')).not.toContainText('Guardando cambios');
 
-  // Se envejece el registro directamente en IndexedDB, como si lo hubiera medido una versión anterior.
-  await page.evaluate(([major]) => new Promise<void>((resolve, reject) => {
-    const open = indexedDB.open('sonora-library-v1');
-    open.onerror = () => reject(open.error);
-    open.onsuccess = () => {
-      const db = open.result;
-      const tx = db.transaction('reviews', 'readwrite');
-      const store = tx.objectStore('reviews');
-      const all = store.getAll();
-      all.onsuccess = () => { for (const r of all.result) { r.features.version = `${major}.0.0`; r.features.analysis.version = `${major}.0.0`; store.put(r); } };
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror = () => reject(tx.error);
-    };
-  }), [FEATURES_VERSION.split('.')[0]]);
+  await ageStoredRecords(page);
   await page.reload();
 
   await page.getByRole('button', { name: /Biblioteca/ }).first().click();
@@ -431,12 +433,25 @@ test('abrir un registro antiguo con audio lo reanaliza y lo pone al día', async
   await page.getByRole('button', { name: /Modelo local/ }).click();
   await expect(page.getByRole('button', { name: 'Reanalizar las que tienen audio' })).toBeEnabled();
 
-  // Abrirla basta: el análisis que ya se hace al abrir guarda las características nuevas.
+  // Camino 1: abrirla basta, el análisis que ya se hace al abrir guarda las características nuevas.
   await page.getByRole('button', { name: /Biblioteca/ }).first().click();
   await page.getByRole('button', { name: /^campana_validacion/ }).click();
   await expect(page.getByRole('heading', { name: 'campana_validacion.wav', exact: true })).toBeVisible();
   await expect(page.locator('.analysis-progress')).toHaveCount(0);
   await expect(page.locator('.workspace-topline')).not.toContainText('Guardando cambios');
+  await page.reload(); // La colección en memoria se actualiza sola; se recarga para leer lo persistido.
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await expect(page.locator('tbody tr')).not.toContainText('reanálisis pendiente');
+
+  // Camino 2: el lote desde Modelo local, con el mismo registro envejecido de nuevo.
+  await ageStoredRecords(page);
+  await page.reload();
+  await page.getByRole('button', { name: /Modelo local/ }).click();
+  await expect(page.getByRole('button', { name: 'Reanalizar las que tienen audio' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Reanalizar las que tienen audio' }).click();
+  await expect(page.locator('.notice-banner')).toContainText('1 muestra(s) reanalizada(s)');
+  await expect(page.locator('.workspace-topline')).not.toContainText('Guardando cambios');
+  await page.reload(); // Igual que arriba: se comprueba lo persistido, no solo el estado en memoria.
   await page.getByRole('button', { name: /Biblioteca/ }).first().click();
   await expect(page.locator('tbody tr')).not.toContainText('reanálisis pendiente');
 });
