@@ -11,6 +11,14 @@ const text = z.string().max(20_000);
 const label = z.enum(['unknown', 'present', 'absent']);
 const labels = z.object({ pitch_shift: label, time_stretch: label, reversa: label, filtros: label, loops: label });
 const evidence = z.object({ pitch_shift: text, time_stretch: text, reversa: text, filtros: text, loops: text });
+const marks = z.array(z.object({
+  id: z.string().min(1).max(64),
+  effect: z.enum(['pitch_shift', 'time_stretch', 'reversa', 'filtros', 'loops']),
+  start: nonnegative,
+  end: nonnegative,
+  note: z.string().max(2000),
+  createdAt: z.string().datetime(),
+}).refine(m => m.end > m.start, 'El final de una marca va después de su inicio')).max(200);
 
 const features = z.object({
   version: z.literal(FEATURES_VERSION),
@@ -36,6 +44,8 @@ export const ReviewSchema = z.object({
   origin: z.enum(['real', 'synthetic']), sourceGroup: z.string().max(200), labels, evidence,
   synopsis: text, context: text, notes: text,
   overprocessing: z.enum(['unknown', 'none', 'Leve', 'Moderado', 'Severo']), extra: label,
+  // Opcional: las colecciones anteriores a las marcas siguen siendo válidas.
+  marks: marks.optional(),
   manualScore: n.min(0).max(200).nullable(),
   student: z.object({ name: z.string().min(1).max(60), submittedAt: z.string().datetime() }).optional(),
   published: z.boolean().optional(),

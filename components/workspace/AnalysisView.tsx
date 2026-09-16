@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { ArrowLeft, ClipboardCheck, Download, FileAudio, Play, Printer, Send, Upload, UserRound } from 'lucide-react';
 import type { AnalyzedAudio } from '../../services/audio';
 import { renderSpectrogramPng } from '../../services/audio/spectrogram';
-import { calculateReview, type ReviewRecord } from '../../services/review';
+import { EFFECTS, calculateReview, type ReviewRecord } from '../../services/review';
 import { downloadFile, jsonSafe } from '../../services/library';
 import { buildEvidence, fmtRange, SOURCE_COLOR } from '../../services/evidence';
 import type { LocalModel } from '../../services/learning/types';
@@ -12,6 +12,9 @@ import AudioPlayer, { type Marker } from '../AudioPlayer';
 import Metrics from './Metrics';
 import ReviewPanel from './ReviewPanel';
 import EvidencePanel from './EvidencePanel';
+import MarkEditor from './MarkEditor';
+import { EFFECT_COLOR, addMark, createMark, removeMark, updateMark, type AudioMark, type MarkPatch } from '../../services/marks';
+import type { ToolId } from '../../services/scoring/rubric';
 const ModelAdvice = lazy(() => import('./ModelAdvice'));
 
 interface Props { record: ReviewRecord; analyzed: AnalyzedAudio | null; audioUrl: string; records: ReviewRecord[]; model: LocalModel | null; rubric: RubricConfig; engines: EngineSettings; teacher: boolean; onChange: (patch: Partial<ReviewRecord>) => void; onBack: () => void; onNewUpload: () => void; onEngines?: () => void; referenceUrl: string; onReference: (id: string) => void; referenceId: string }
@@ -21,18 +24,33 @@ export default function AnalysisView({ record, analyzed, audioUrl, records, mode
   const [spectrum, setSpectrum] = useState('');
   const [tab, setTab] = useState<'wave' | 'spectrum'>('wave');
   const [advice, setAdvice] = useState(false);
+  const [tool, setTool] = useState<ToolId>('reversa');
+  const [marking, setMarking] = useState(false);
+  const [markNotice, setMarkNotice] = useState('');
   const seekRef = useRef<((time: number) => void) | null>(null);
   const [playTime, setPlayTime] = useState(0);
   const reviewRef = useRef<HTMLDivElement>(null);
   const signalRef = useRef<HTMLElement>(null);
-  useEffect(() => { setSpectrum(''); setTab('wave'); setAdvice(false); setPlayTime(0); }, [record.id]);
+  useEffect(() => { setSpectrum(''); setTab('wave'); setAdvice(false); setPlayTime(0); setMarking(false); setMarkNotice(''); }, [record.id]);
   useEffect(() => { if (tab !== 'spectrum' || !analyzed || spectrum) return; const frame = requestAnimationFrame(() => { const image = renderSpectrogramPng(analyzed.channels, analyzed.sampleRate, { width: 1100, height: 340, fftSize: 2048 }); setSpectrum(`data:image/png;base64,${image.base64}`); }); return () => cancelAnimationFrame(frame); }, [tab, analyzed, spectrum]);
   const reference = records.find(r => r.id === referenceId);
   const score = calculateReview(record, rubric);
   const graded = score.final !== null && (teacher || !!record.published);
   // Cada rol ve lo suyo: las decisiones del profesor solo llegan al estudiante al publicar la revisión.
   const evidence = useMemo(() => buildEvidence(record, rubric, teacher ? 'teacher' : 'student'), [record, rubric, teacher]);
-  const extraMarkers = useMemo<Marker[]>(() => evidence.filter(e => e.time !== undefined && e.source !== 'medido').map(e => ({ start: e.time!, end: e.end ?? Math.min(record.features.format.duration, e.time! + 0.25), color: SOURCE_COLOR[e.source], label: `${e.criterio} · ${e.source === 'profesor' ? 'profesor' : 'modelo'} · ${fmtRange({ start: e.time!, end: e.end })}` })), [evidence, record.features.format.duration]);
+  const duration = record.features.format.duration;
+  // Las marcas se pintan desde el registro, no desde la lista de evidencias: si no, saldrían dos veces.
+  const visibleMarks = teacher || record.published ? record.marks ?? [] : [];
+  const extraMarkers = useMemo<Marker[]>(() => [
+    ...evidence.filter(e => e.time !== undefined && e.source !== 'medido' && !e.id.startsWith('mark-')).map(e => ({ start: e.time!, end: e.end ?? Math.min(duration, e.time! + 0.25), color: SOURCE_COLOR[e.source], label: `${e.criterio} · ${e.source === 'profesor' ? 'profesor' : 'modelo'} · ${fmtRange({ start: e.time!, end: e.end })}` })),
+    ...visibleMarks.map(m => ({ id: m.id, start: m.start, end: m.end, color: EFFECT_COLOR[m.effect], editable: teacher, label: `${EFFECTS.find(x => x.id === m.effect)?.label ?? m.effect} · profesor · ${fmtRange({ start: m.start, end: m.end })}` })),
+  ], [evidence, duration, visibleMarks, teacher]);
+  const applyMark = (result: MarkPatch) => {
+    if (!Object.keys(result.patch).length) return;
+    onChange(result.patch);
+    setMarkNotice(result.proposedLabel ? `${EFFECTS.find(e => e.id === result.proposedLabel)?.label} pasa a «presente». Puedes cambiarlo en la revisión.` : '');
+  };
+  const addMarkHere = (mark: AudioMark) => { try { applyMark(addMark(record, mark)); } catch (e) { setMarkNotice(e instanceof Error ? e.message : 'No se pudo añadir la marca.'); } };
   const studentReading = !teacher && engines.studentAccess && engines.engine !== 'local';
   const seek = (t: number) => seekRef.current?.(t);
 
@@ -41,7 +59,14 @@ export default function AnalysisView({ record, analyzed, audioUrl, records, mode
     <Metrics features={record.features} />
     <section className="panel signal-panel" ref={signalRef}><div className="panel-heading"><div><span className="eyebrow">EXPLORADOR DE SEÑAL</span><h3>Escucha dónde ocurre.</h3></div><div className="segmented" aria-label="Vista de audio"><button aria-pressed={tab === 'wave'} className={tab === 'wave' ? 'selected' : ''} onClick={() => setTab('wave')}>Forma de onda</button><button disabled={!analyzed} aria-pressed={tab === 'spectrum'} className={tab === 'spectrum' ? 'selected' : ''} onClick={() => setTab('spectrum')}>Espectrograma</button></div></div>
       {tab === 'spectrum' && <div className="spectrogram">{spectrum ? <img src={spectrum} alt="Espectrograma del audio: tiempo horizontal, frecuencia vertical y nivel representado por color." /> : <p>Generando espectrograma local…</p>}</div>}
-      {audioUrl ? <AudioPlayer src={audioUrl} features={record.features} extraMarkers={extraMarkers} seekRef={seekRef} onTime={setPlayTime} /> : <div className="empty-audio">Este registro contiene métricas y etiquetas. Vuelve a subir el audio original para escucharlo; se reconocerá por su huella.</div>}
+      {audioUrl ? <AudioPlayer src={audioUrl} features={record.features} extraMarkers={extraMarkers} seekRef={seekRef} onTime={setPlayTime} zoomable={teacher} markEditing={marking ? { color: EFFECT_COLOR[tool] } : null} onMarkCreate={(start, end) => addMarkHere(createMark(tool, start, end, duration))} onMarkUpdate={(id, start, end) => applyMark(updateMark(record, id, { start, end }, duration))} /> : <div className="empty-audio">Este registro contiene métricas y etiquetas. Vuelve a subir el audio original para escucharlo; se reconocerá por su huella.</div>}
+      {teacher && <>
+        {markNotice && <p className="notice" role="status">{markNotice}</p>}
+        <MarkEditor record={record} duration={duration} tool={tool} onTool={setTool} marking={marking} onMarking={setMarking} currentTime={playTime} canSeek={!!audioUrl} onSeek={seek}
+          onAdd={addMarkHere}
+          onUpdate={(id, changes) => applyMark(updateMark(record, id, changes, duration))}
+          onRemove={id => applyMark(removeMark(record, id))} />
+      </>}
       {record.features.analysis.warnings.length > 0 && <details className="measurement-warnings"><summary>Notas sobre estas mediciones ({record.features.analysis.warnings.length})</summary>{record.features.analysis.warnings.map((w, i) => <p key={i}>{w}</p>)}</details>}
     </section>
 
