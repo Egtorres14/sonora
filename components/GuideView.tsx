@@ -9,10 +9,11 @@ const TEACHER_STEPS: Step[] = [
   { title: 'Sube o recibe audios', text: 'En Laboratorio arrastra archivos WAV, AIFF o FLAC. Las entregas de los estudiantes aparecen en Biblioteca con su nombre y fecha. Nada sale del navegador: el audio se analiza y se guarda localmente.' },
   { title: 'Lee las mediciones', text: 'Cada archivo muestra loudness (LUFS), pico real, saturación, clics, silencios y espectro. Son medidas reales según ITU-R BS.1770; puntúan solas la parte técnica de la rúbrica.', tip: 'Pulsa una marca de la línea de tiempo o una fila de evidencias para escuchar justo ese momento.' },
   { title: 'Confirma cada herramienta', text: 'En «Criterio del profesor» marca presente, ausente o pendiente para pitch shift, time stretch, reversa, filtros y loops. Escribe la evidencia con tiempos («0:12–0:18») y aparecerá en la línea de tiempo.', tip: 'Con la fuente original en la biblioteca, elige una referencia en el panel de contexto para escuchar A/B.' },
+  { title: 'Marca dónde ocurre', text: 'Con «Marcar» activo, arrastra sobre la forma de onda para señalar el tramo de cada herramienta; si prefieres no usar el ratón, pulsa «Marcar desde el tiempo actual» y ajusta inicio y fin en la lista. Cada marca lleva su comentario y encabeza la lista de evidencias.', tip: 'La primera marca de una herramienta pendiente la propone como «presente»; borrarla no cambia tu decisión. Sube el zoom a 200 o 400 px/s: a tamaño «Ajustar», en un archivo de un minuto, un píxel son decenas de milisegundos.' },
   { title: 'Pide una segunda opinión', text: 'En Motores de IA eliges el modelo local (gratis, en tu equipo) o un proveedor externo con tu clave. Las sugerencias nunca cambian etiquetas ni notas: solo señalan dónde mirar.' },
   { title: 'Redacta el feedback y publica', text: '«Redactar borrador» convierte mediciones y anotaciones en un texto editable. Cuando la revisión esté completa, «Publicar al estudiante» le muestra nota y comentarios en «Mis entregas».' },
   { title: 'Ajusta la rúbrica', text: 'En Rúbrica puedes cambiar puntos, penalizaciones y herramientas obligatorias. Las notas de toda la biblioteca se recalculan con la rúbrica vigente.' },
-  { title: 'Entrena el modelo local', text: 'En Muestras importa el corpus de ejemplo (900 variantes con etiqueta exacta) y carga el modelo ya entrenado, o entrena en Modelo local con tu propia colección etiquetada. La validación se hace por grabación de origen para no engañarte.' },
+  { title: 'Entrena el modelo local', text: 'En Muestras importa el corpus de ejemplo (900 variantes con etiqueta exacta) y carga el modelo ya entrenado, o entrena en Modelo local con tu propia colección etiquetada. La validación se hace por grabación de origen para no engañarte, y cada entrenamiento deja una fila en el historial con la diferencia respecto al anterior.' },
   { title: 'Exporta y comparte', text: 'Desde Biblioteca exporta CSV para tu hoja de notas o JSON para llevar la colección a otro equipo o contribuirla al repositorio.' },
 ];
 const STUDENT_STEPS: Step[] = [
@@ -22,7 +23,7 @@ const STUDENT_STEPS: Step[] = [
   { title: 'Escribe la sinopsis', text: 'Cuenta qué querías conseguir y qué procesos usaste (pitch shift, time stretch, reversa, filtros, loops, otros). La sinopsis puntúa y ayuda al profesor a encontrar cada proceso.' },
   { title: 'Mira las mediciones', text: 'Verás nivel, pico real, saturación y clics con el momento exacto. Si algo sale mal puedes corregir el proyecto y volver a entregar antes de que lo revisen.' },
   { title: 'Lectura orientativa', text: 'Si tu profesor la ha activado, puedes pedir una lectura de un modelo de IA: qué se oye, fortalezas y mejoras. No es una nota ni sustituye la revisión del profesor.' },
-  { title: 'Consulta tu calificación', text: 'En Mis entregas aparecerá «Publicada» cuando el profesor termine. Ahí verás la nota, el desglose por criterios y su feedback.' },
+  { title: 'Consulta tu calificación', text: 'En Mis entregas aparecerá «Publicada» cuando el profesor termine. Ahí verás la nota, el desglose por criterios, las marcas que tu profesor dejó sobre tu audio y su feedback.' },
 ];
 
 export default function GuideView({ role, onRole, onBack, backLabel = 'Volver' }: Props) {

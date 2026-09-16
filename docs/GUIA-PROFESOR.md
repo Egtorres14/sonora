@@ -47,6 +47,14 @@ En **Criterio del profesor** marca para cada herramienta (pitch shift, time stre
 En **Motores de IA** decides quién opina y cuánto cuesta:
 
 - **Modelo local** (por defecto): bosque aleatorio entrenado en tu navegador. Gratis y privado; se abstiene cuando no está seguro. Solo tú ves sus sugerencias.
+### Marcar dónde ocurre cada herramienta
+
+Sobre la forma de onda, con «Marcar» activo, arrastra para señalar el tramo de una herramienta. Sin ratón: «Marcar desde el tiempo actual» crea una marca de un segundo desde el cursor y los tiempos se ajustan con los campos numéricos de la lista; ese camino funciona también en un registro importado que no trae audio.
+
+Cada marca lleva su comentario y **encabeza la lista de evidencias**: si una herramienta tiene marcas, los tiempos salen de ellas y el campo de texto deja de parsearse. La primera marca de una herramienta pendiente la propone como «presente» y te avisa; borrarla **no** cambia la etiqueta, porque la decisión es tuya. El estudiante no ve ninguna marca hasta que publicas la revisión.
+
+Sube el zoom a 200 o 400 px/s para marcar con precisión: a tamaño «Ajustar», en un archivo de un minuto, un píxel son decenas de milisegundos.
+
 - **Gemini, Claude u OpenAI** con tu clave: reciben las mediciones y la sinopsis, nunca el audio. Puedes elegir modelo, número de ejecuciones (mayoría de 3 o 5) y si los estudiantes pueden pedir una lectura orientativa con tu presupuesto.
 
 Ninguna sugerencia cambia etiquetas ni notas: solo señala dónde mirar.

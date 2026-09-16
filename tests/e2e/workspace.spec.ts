@@ -213,7 +213,7 @@ test('guía de uso antes de entrar y desde cada rol', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Entregar bien/ })).toBeVisible();
   await page.getByRole('group', { name: 'Guía para' }).getByRole('button', { name: 'Profesor' }).click();
   await expect(page.getByRole('heading', { name: /Del archivo a la nota/ })).toBeVisible();
-  await expect(page.locator('.guide-steps li')).toHaveCount(9);
+  await expect(page.locator('.guide-steps li')).toHaveCount(10);
   await page.getByRole('button', { name: 'Volver a la entrada' }).click();
   await expect(page.getByRole('heading', { name: '¿Quién entra?' })).toBeVisible();
   await page.getByLabel('Nombre y apellidos').fill('Ana Ruiz');
