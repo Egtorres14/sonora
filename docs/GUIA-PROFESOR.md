@@ -69,6 +69,23 @@ Ninguna sugerencia cambia etiquetas ni notas: solo señala dónde mirar.
 
 En **Rúbrica** cambias los puntos de cada bloque (formal, técnico, creativo), las penalizaciones, las herramientas obligatorias y la bonificación. Se guarda en el navegador y todas las notas se recalculan al instante. **Restablecer** vuelve a la original.
 
+### Formato del nombre de archivo
+
+Escribe el formato tal como lo pondrías en el enunciado. Campos disponibles:
+
+| Campo | Acepta |
+|---|---|
+| `{estudiante}` | Una palabra del nombre con el que entró el estudiante |
+| `{numero}` | Uno o más dígitos |
+| `{texto}` | Una palabra de letras o números |
+| `*` | Cualquier cosa |
+
+Por ejemplo, `{estudiante}_{estudiante}_ejercicio{numero}` acepta `perez_ana_ejercicio3.wav` de Ana Pérez. No distingue mayúsculas ni acentos, y el resto de caracteres se toma literalmente.
+
+`{estudiante}` se comprueba contra el nombre registrado: si Ana Pérez entrega `lopez_ana_ejercicio3.wav`, el criterio no puntúa y el motivo lo dice («lopez» no forma parte del nombre registrado). Partículas como «de» o «la» no cuentan como parte del nombre.
+
+Usa la caja **Probar un nombre** antes de guardar: te dice si un nombre puntuaría y por qué. El estudiante ve el formato y un ejemplo con su propio nombre **antes** de subir. Si dejas el campo vacío, se mantiene el criterio anterior: solo pierden puntos los nombres genéricos como «audio1» o «untitled».
+
 ## 8. Muestras y modelo local
 
 - **Muestras** lista el corpus publicado: 50 grabaciones de dominio público o CC0 con 18 variantes cada una (900 muestras) generadas por el proyecto, con etiqueta exacta de cada proceso. Puedes escuchar el original y una versión por herramienta, ver la cadena de procesos y filtrar por categoría.

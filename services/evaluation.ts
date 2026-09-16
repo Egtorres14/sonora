@@ -33,6 +33,7 @@ export const evaluateProject = async (args: EvaluateProjectArgs): Promise<AudioE
   if (!model) throw new ProviderError(`Modelo no reconocido: ${args.llm.model}`, args.llm.provider, 'bad-request');
 
   args.onStage?.('Puntuando la parte formal y técnica…');
+  // Esta ruta no recibe el nombre del estudiante: el formato se exige, pero no se verifica de quién es.
   const formal = scoreFormal(fileName, args.synopsis, rubric);
   const technical = scoreTechnical(f, rubric);
 

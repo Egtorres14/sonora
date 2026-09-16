@@ -1,14 +1,38 @@
 import { useEffect, useState } from 'react';
-import { RotateCcw, Save, SlidersHorizontal } from 'lucide-react';
+import { Check, RotateCcw, Save, SlidersHorizontal, X } from 'lucide-react';
 import { EFFECTS } from '../../services/review';
 import { rubricTotal, toStored, fromStored, isDefaultRubric, type StoredRubric } from '../../services/rubric-store';
-import type { RubricConfig, ToolId } from '../../services/scoring/rubric';
+import { checkRubricFileName, type RubricConfig, type ToolId } from '../../services/scoring/rubric';
+import { NAME_FIELDS, describeNamePattern } from '../../services/filename-rule';
 
 interface Props { rubric: RubricConfig; onSave: (r: RubricConfig) => void; onReset: () => void }
 
 const Num = ({ label, value, onChange, step = 0.5, min = 0, max = 100, hint }: { label: string; value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; hint?: string }) => (
   <label className="field"><span>{label}</span><input type="number" value={value} step={step} min={min} max={max} onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v)) onChange(v); }} />{hint && <small>{hint}</small>}</label>
 );
+
+/**
+ * Formato exigido del nombre de archivo, con una caja para probarlo. Sin probar, escribir una
+ * plantilla es a ciegas: un error suspendería a toda la clase en este criterio sin que nadie lo viera.
+ */
+const NameFormat = ({ formal, onChange }: { formal: StoredRubric['formal']; onChange: (pattern: string) => void }) => {
+  const [sample, setSample] = useState('');
+  const [student, setStudent] = useState('');
+  const pattern = formal.fileNamePattern ?? '';
+  const verdict = sample.trim() ? checkRubricFileName(sample.trim(), formal, student.trim() || undefined) : null;
+  return <div className="name-format">
+    <label className="field"><span>Formato exigido del nombre de archivo</span>
+      <input value={pattern} maxLength={200} placeholder="Ej.: {estudiante}_{estudiante}_ejercicio{numero}" onChange={e => onChange(e.target.value)} />
+      <small>{pattern.trim() ? `Un nombre válido sería «${describeNamePattern(pattern)}».` : 'Vacío: solo se descartan nombres genéricos como «audio1» o «untitled».'}</small>
+    </label>
+    <ul className="name-fields">{NAME_FIELDS.map(f => <li key={f.token}><code>{f.token}</code> {f.help}</li>)}</ul>
+    <div className="name-test">
+      <label className="field"><span>Probar un nombre</span><input value={sample} placeholder="perez_ana_ejercicio3.wav" onChange={e => setSample(e.target.value)} /></label>
+      <label className="field"><span>Como si lo entregara</span><input value={student} placeholder="Ana Pérez" onChange={e => setStudent(e.target.value)} /></label>
+    </div>
+    {verdict && <p className={`name-verdict ${verdict.ok ? 'ok' : 'bad'}`} data-testid="name-verdict">{verdict.ok ? <Check size={14} /> : <X size={14} />} {verdict.ok ? 'Puntuaría' : 'No puntuaría'}: {verdict.reason}</p>}
+  </div>;
+};
 
 export default function RubricEditor({ rubric, onSave, onReset }: Props) {
   const [draft, setDraft] = useState<StoredRubric>(() => toStored(rubric));
@@ -27,7 +51,8 @@ export default function RubricEditor({ rubric, onSave, onReset }: Props) {
     <div className="rubric-grid">
       <section className="panel"><div className="panel-heading"><div><span className="eyebrow">FORMAL</span><h3>Entrega</h3></div><SlidersHorizontal size={18} /></div>
         <Num label="Puntos por sinopsis presente" value={draft.formal.synopsisPoints} onChange={v => set('formal', { synopsisPoints: v })} />
-        <Num label="Puntos por nombre de archivo descriptivo" value={draft.formal.fileNamePoints} onChange={v => set('formal', { fileNamePoints: v })} />
+        <Num label="Puntos por nombre de archivo" value={draft.formal.fileNamePoints} onChange={v => set('formal', { fileNamePoints: v })} />
+        <NameFormat formal={draft.formal} onChange={fileNamePattern => set('formal', { fileNamePattern })} />
         <Num label="Mínimo de caracteres de la sinopsis" value={draft.formal.minSynopsisChars} step={1} max={5000} onChange={v => set('formal', { minSynopsisChars: Math.round(v) })} />
       </section>
       <section className="panel"><div className="panel-heading"><div><span className="eyebrow">TÉCNICA</span><h3>Medido en el archivo</h3></div></div>

@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { ArrowUpRight, AudioLines, Upload } from 'lucide-react';
 import { DEMOS, type DemoId } from '../../services/audio/demos';
+import { describeNamePattern } from '../../services/filename-rule';
 
-interface Props { busy: boolean; onFiles: (files: File[]) => void; onDemo: (id: DemoId) => void; compact?: boolean; student?: string }
-export default function UploadArea({ busy, onFiles, onDemo, compact = false, student }: Props) {
+interface Props { busy: boolean; onFiles: (files: File[]) => void; onDemo: (id: DemoId) => void; compact?: boolean; student?: string; /** Formato de nombre exigido por el profesor. */ nameFormat?: string }
+export default function UploadArea({ busy, onFiles, onDemo, compact = false, student, nameFormat = '' }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   return <div className={compact ? 'upload-compact' : 'entry-layout'}>
@@ -15,6 +16,8 @@ export default function UploadArea({ busy, onFiles, onDemo, compact = false, stu
         <p>Arrastra uno o varios archivos de audio aquí</p>
         <button className="button primary" disabled={busy} onClick={() => input.current?.click()}>Seleccionar archivos <ArrowUpRight size={17} /></button>
         <span className="upload-meta">WAV · AIFF · FLAC <span>Hasta 200 MB por archivo</span></span>
+        {/* Antes de subir, no después de perder los puntos. */}
+        {student && nameFormat.trim() && <p className="name-requirement" data-testid="name-requirement">Nombra el archivo así: <code>{nameFormat.trim()}</code> · por ejemplo «{describeNamePattern(nameFormat, student)}»</p>}
         <input ref={input} id="audio-upload" type="file" aria-label="Subir archivos de audio" className="visually-hidden" accept=".wav,.wave,.aif,.aiff,.aifc,.flac" multiple disabled={busy} onChange={e => { onFiles(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
       </div>
     </div>

@@ -345,3 +345,36 @@ test('las marcas sobreviven a recargar y el zoom está disponible', async ({ pag
   await page.getByRole('button', { name: /^campana_validacion/ }).click();
   await expect(page.getByLabel('Comentario de la marca de Loops')).toHaveValue('Bucle de dos compases');
 });
+
+test('el formato de nombre que exige el profesor se enseña, se prueba y puntúa', async ({ page }) => {
+  // El profesor declara el formato y lo prueba antes de guardar
+  await page.getByRole('button', { name: /Rúbrica/ }).click();
+  await page.getByLabel('Formato exigido del nombre de archivo').fill('{estudiante}_ejercicio{numero}');
+  await expect(page.getByText('Un nombre válido sería «apellido_ejercicio3.wav».')).toBeVisible();
+  await page.getByLabel('Probar un nombre').fill('asdkjh.wav');
+  await expect(page.getByTestId('name-verdict')).toContainText('No puntuaría');
+  await page.getByLabel('Probar un nombre').fill('soler_ejercicio2.wav');
+  await page.getByLabel('Como si lo entregara').fill('Lucía Soler');
+  await expect(page.getByTestId('name-verdict')).toContainText('Puntuaría');
+  await page.getByRole('button', { name: 'Guardar rúbrica' }).click();
+  await expect(page.locator('.notice-banner')).toContainText('Rúbrica guardada');
+
+  // La estudiante ve el formato antes de subir, con su propio nombre en el ejemplo
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await page.getByLabel('Nombre y apellidos').fill('Lucía Soler');
+  await page.getByRole('button', { name: 'Entrar como estudiante' }).click();
+  await expect(page.getByTestId('name-requirement')).toContainText('lucia_ejercicio3.wav');
+  await page.getByLabel('Subir archivos de audio').setInputFiles(audio());
+  await expect(page.locator('.file-heading')).toContainText('Tu entrega');
+
+  // «campana_validacion.wav» no sigue el formato: el profesor ve 0 puntos y el motivo
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await page.getByLabel('PIN', { exact: true }).fill('Felipebolano2026');
+  await page.getByRole('button', { name: 'Entrar como profesor' }).click();
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await page.getByText('Ver desglose de criterios').click();
+  const nameLine = page.locator('.score-details > div', { hasText: 'Nombre de archivo' });
+  await expect(nameLine.locator('span')).toHaveText('0');
+  await expect(nameLine).toContainText('no sigue el formato exigido');
+});

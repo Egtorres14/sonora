@@ -9,7 +9,7 @@ Escribe tu nombre completo tal y como quieres que lo vea tu profesor. Con ese no
 ## 2. Prepara el archivo
 
 - Exporta el proyecto en **WAV, AIFF o FLAC**. No se aceptan MP3 ni otros formatos comprimidos.
-- Ponle un nombre descriptivo, por ejemplo `apellido_nombre_proyecto1.wav`. Un nombre genérico («audio.wav», «final.wav») resta puntos.
+- Ponle el nombre que pida tu profesor. Si ha fijado un formato, lo verás en la pantalla de entrega con un ejemplo hecho con tu propio nombre: síguelo tal cual, porque el nombre puntúa y se comprueba que las palabras sean tuyas. Si no hay formato, basta con un nombre descriptivo; uno genérico («audio.wav», «final.wav») resta puntos.
 - Máximo 200 MB por archivo.
 - Consejos técnicos que la app comprueba:
   - Deja al menos **1 dB de margen** por debajo de 0 dBFS. La saturación penaliza.
