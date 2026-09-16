@@ -3,6 +3,7 @@ import { describeAudio, DESCRIPTOR_VERSION } from './descriptors';
 import type { AudioFeatures } from '../audio/features';
 import type { ReviewRecord } from '../review';
 import type { TrainingSample, EffectId, GroupFold, Readiness, LocalModel, ModelSnapshot, Prediction, ConfusionCounts, ValidationMetrics } from './types';
+import { isCurrentFeatures } from '../audio/version';
 
 const effects: EffectId[] = ['pitch_shift', 'time_stretch', 'reversa', 'filtros', 'loops'];
 const group = (s: TrainingSample) => s.sourceGroup.trim().toLowerCase();
@@ -43,6 +44,16 @@ export const createGroupDisjointFolds = (samples: TrainingSample[], effect: Effe
     return { trainIndices, testIndices, testGroups, trainGroups: groups.filter(g => !test.has(g)) };
   });
 };
+
+/**
+ * Lo que puede entrenar y lo que necesita reanálisis. `describeAudio` lanza con una versión
+ * distinta, y antes bastaba un registro antiguo para que fallara todo el entrenamiento.
+ * Lo usan la aplicación (LearningView) y CI (scripts/contrib/train-community.ts).
+ */
+export const splitByFeatureVersion = <T extends { features: { version: string } }>(records: T[]): { current: T[]; stale: T[] } => ({
+  current: records.filter(r => isCurrentFeatures(r.features)),
+  stale: records.filter(r => !isCurrentFeatures(r.features)),
+});
 
 export const trainingReadiness = (samples: TrainingSample[]): Readiness[] => effects.map(effect => {
   const rows = labeled(samples, effect), positives = rows.filter(s => s.labels[effect] === 'present'), negatives = rows.filter(s => s.labels[effect] === 'absent');
