@@ -1,7 +1,8 @@
 import { RandomForestClassifier } from 'ml-random-forest';
 import { describeAudio, DESCRIPTOR_VERSION } from './descriptors';
 import type { AudioFeatures } from '../audio/features';
-import type { TrainingSample, EffectId, GroupFold, Readiness, LocalModel, Prediction, ConfusionCounts } from './types';
+import type { ReviewRecord } from '../review';
+import type { TrainingSample, EffectId, GroupFold, Readiness, LocalModel, ModelSnapshot, Prediction, ConfusionCounts, ValidationMetrics } from './types';
 
 const effects: EffectId[] = ['pitch_shift', 'time_stretch', 'reversa', 'filtros', 'loops'];
 const group = (s: TrainingSample) => s.sourceGroup.trim().toLowerCase();
@@ -99,6 +100,29 @@ export const trainLocalModel = (samples: TrainingSample[], options: ForestOption
   model.trainingSampleIds = [...new Set(Object.values(model.effects).flatMap(e => e!.sampleIds))];
   model.trainingGroupIds = [...new Set(Object.values(model.effects).flatMap(e => e!.groupIds))];
   return model;
+};
+
+/** Resumen comparable de un entrenamiento, sin el bosque serializado. */
+export const summarizeModel = (model: LocalModel): ModelSnapshot => ({
+  trainedAt: model.trainedAt,
+  featureVersion: model.featureVersion,
+  sampleCount: model.trainingSampleIds.length,
+  groupCount: model.trainingGroupIds.length,
+  effects: Object.fromEntries(Object.values(model.effects).map(e => [e!.effect, e!.validation])) as Partial<Record<EffectId, ValidationMetrics>>,
+});
+
+/**
+ * ¿Hay que reentrenar? Solo si una muestra usada en el entrenamiento ha desaparecido o ha cambiado
+ * en algo que el modelo aprende. Escribir el feedback de un estudiante no invalida nada, y por eso
+ * se mira `trainingUpdatedAt` (con `updatedAt` de respaldo en los registros antiguos).
+ */
+export const isModelStale = (model: LocalModel | null, records: ReviewRecord[]): boolean => {
+  if (!model) return false;
+  const byId = new Map(records.map(r => [r.id, r]));
+  return model.trainingSampleIds.some(id => {
+    const record = byId.get(id);
+    return !record || (record.trainingUpdatedAt ?? record.updatedAt) > model.trainedAt;
+  });
 };
 
 export const predictLocalModel = (model: LocalModel, features: AudioFeatures): Prediction[] => {

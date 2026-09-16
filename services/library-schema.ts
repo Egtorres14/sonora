@@ -29,7 +29,10 @@ const features = z.object({
 
 export const ReviewSchema = z.object({
   id: z.string().regex(/^[a-f0-9]{64}$/), name: z.string().min(1).max(500),
-  createdAt: z.string().datetime(), updatedAt: z.string().datetime(), features,
+  createdAt: z.string().datetime(), updatedAt: z.string().datetime(),
+  // Opcional: las colecciones anteriores a este campo siguen siendo válidas y usan `updatedAt`.
+  trainingUpdatedAt: z.string().datetime().optional(),
+  features,
   origin: z.enum(['real', 'synthetic']), sourceGroup: z.string().max(200), labels, evidence,
   synopsis: text, context: text, notes: text,
   overprocessing: z.enum(['unknown', 'none', 'Leve', 'Moderado', 'Severo']), extra: label,

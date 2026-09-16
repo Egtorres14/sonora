@@ -1,20 +1,29 @@
 import { openDB, type DBSchema } from 'idb';
 import { calculateReview, EFFECTS, type ReviewRecord } from './review';
 import type { RubricConfig } from './scoring/rubric';
-import type { LocalModel } from './learning/types';
+import { summarizeModel } from './learning/model';
+import type { LocalModel, ModelSnapshot } from './learning/types';
 import { DatasetSchema } from './library-schema';
 
 interface LibraryDB extends DBSchema {
   reviews: { key: string; value: ReviewRecord };
   audio: { key: string; value: Blob };
   models: { key: string; value: LocalModel };
+  /** Un resumen por entrenamiento, para poder comparar y ver si el modelo mejora. */
+  modelHistory: { key: string; value: ModelSnapshot };
 }
+
+/** Versión del esquema de IndexedDB. Cada incremento añade su paso en `upgrade`, sin borrar nada. */
+const DB_VERSION = 2;
 
 export const createLibrary = (name = 'sonora-library-v1') => {
   // Open lazily: importing the app does not fail in environments without IndexedDB.
   let connection: ReturnType<typeof openDB<LibraryDB>> | undefined;
-  const connect = () => connection ??= openDB<LibraryDB>(name, 1, {
-    upgrade(db) { db.createObjectStore('reviews', { keyPath: 'id' }); db.createObjectStore('audio'); db.createObjectStore('models'); },
+  const connect = () => connection ??= openDB<LibraryDB>(name, DB_VERSION, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) { db.createObjectStore('reviews', { keyPath: 'id' }); db.createObjectStore('audio'); db.createObjectStore('models'); }
+      if (oldVersion < 2) db.createObjectStore('modelHistory', { keyPath: 'trainedAt' });
+    },
     blocking() { void connection?.then(db => db.close()); connection = undefined; },
   });
   return {
@@ -45,7 +54,16 @@ export const createLibrary = (name = 'sonora-library-v1') => {
       return { added, skipped };
     },
     async model() { return (await connect()).get('models', 'current'); },
-    async saveModel(model: LocalModel) { await (await connect()).put('models', model, 'current'); },
+    async saveModel(model: LocalModel) {
+      const db = await connect();
+      const tx = db.transaction(['models', 'modelHistory'], 'readwrite');
+      await tx.objectStore('models').put(model, 'current');
+      // El resumen se conserva aunque el modelo se sustituya: es lo que permite ver la evolución.
+      await tx.objectStore('modelHistory').put(summarizeModel(model));
+      await tx.done;
+    },
+    /** Entrenamientos anteriores, del más antiguo al más reciente. */
+    async modelHistory() { return (await (await connect()).getAll('modelHistory')).sort((a, b) => a.trainedAt.localeCompare(b.trainedAt)); },
   };
 };
 export const library = createLibrary();
@@ -53,7 +71,8 @@ export const jsonSafe = (_key: string, value: unknown) => value === Infinity ? '
 
 export const exportDataset = (records: ReviewRecord[]) => JSON.stringify({
   version: 1, exportedAt: new Date().toISOString(), audioIncluded: false,
-  records: records.map(({ ai: _ai, ...record }) => record),
+  // Las lecturas de modelos externos no viajan: son opiniones, no datos verificados.
+  records: records.map(({ ai: _ai, reading: _reading, ...record }) => record),
 }, jsonSafe, 2);
 
 export const parseDataset = (text: string): ReviewRecord[] => {

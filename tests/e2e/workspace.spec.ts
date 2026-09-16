@@ -245,3 +245,65 @@ test('muestras del corpus: escucha, importación y modelo publicado', async ({ p
   await page.getByRole('button', { name: 'Redactar borrador' }).click();
   await expect(page.getByLabel('Feedback para el estudiante')).toHaveValue(/clics|Quedan por revisar/);
 });
+
+test('el laboratorio vuelve a la zona de carga sin pasar por la biblioteca', async ({ page }) => {
+  await page.getByLabel('Subir archivos de audio').setInputFiles(audio());
+  await expect(page.getByRole('heading', { name: 'campana_validacion.wav', exact: true })).toBeVisible();
+  // Desde el propio análisis
+  await page.getByRole('button', { name: 'Subir otro archivo' }).click();
+  await expect(page.getByRole('heading', { name: /Escucha\./ })).toBeVisible();
+  await expect(page.locator('.breadcrumb')).toContainText('Laboratorio');
+  // Y volviendo a pulsar «Laboratorio» con un archivo abierto
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await expect(page.getByRole('heading', { name: 'campana_validacion.wav', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Laboratorio/ }).first().click();
+  await expect(page.getByRole('heading', { name: /Escucha\./ })).toBeVisible();
+});
+
+test('el estudiante no ve las decisiones del profesor hasta que se publican', async ({ page }) => {
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await page.getByLabel('Nombre y apellidos').fill('Lucía Soler');
+  await page.getByRole('button', { name: 'Entrar como estudiante' }).click();
+  await page.getByLabel('Subir archivos de audio').setInputFiles(audio());
+  await expect(page.locator('.file-heading')).toContainText('Tu entrega');
+
+  // El profesor etiqueta pero no publica
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await page.getByLabel('PIN', { exact: true }).fill('Felipebolano2026');
+  await page.getByRole('button', { name: 'Entrar como profesor' }).click();
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await page.getByRole('group', { name: 'Revisión de Reversa' }).getByRole('button', { name: 'Presente' }).click();
+  await page.getByLabel('Evidencia de Reversa').fill('0:12–0:18 cola invertida');
+  await expect(page.locator('.evidence-panel')).toContainText('Reversa confirmado');
+
+  // La estudiante ve sus mediciones, pero ninguna decisión del profesor
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await page.getByLabel('Nombre y apellidos').fill('Lucía Soler');
+  await page.getByRole('button', { name: 'Entrar como estudiante' }).click();
+  await page.getByRole('button', { name: /Mis entregas/ }).first().click();
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await expect(page.locator('.evidence-panel')).not.toContainText('Reversa confirmado');
+  await expect(page.locator('.evidence-panel .evidence-source.profesor')).toHaveCount(0);
+  await expect(page.getByText('Pendiente de revisión.')).toBeVisible();
+
+  // Al publicar, las mismas evidencias llegan a la estudiante
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await page.getByLabel('PIN', { exact: true }).fill('Felipebolano2026');
+  await page.getByRole('button', { name: 'Entrar como profesor' }).click();
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  for (const tool of ['Pitch shift', 'Time stretch', 'Filtros', 'Loops']) await page.getByRole('group', { name: `Revisión de ${tool}` }).getByRole('button', { name: 'Presente' }).click();
+  await page.getByLabel('Sobreprocesamiento').selectOption('none');
+  await page.getByLabel('Efectos extra').selectOption('absent');
+  await page.getByRole('button', { name: 'Publicar al estudiante' }).click();
+  await expect(page.getByRole('button', { name: 'Retirar publicación' })).toBeVisible();
+
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await page.getByLabel('Nombre y apellidos').fill('Lucía Soler');
+  await page.getByRole('button', { name: 'Entrar como estudiante' }).click();
+  await page.getByRole('button', { name: /Mis entregas/ }).first().click();
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await expect(page.locator('.evidence-panel')).toContainText('Reversa confirmado');
+});

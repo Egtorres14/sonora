@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, FlaskConical, Layers3, Play, ShieldCheck, Square } from 'lucide-react';
+import { ArrowRight, FlaskConical, Layers3, Play, ShieldCheck, Square, TrendingUp } from 'lucide-react';
 import { EFFECTS, type ReviewRecord } from '../../services/review';
 import { trainingReadiness } from '../../services/learning/model';
 import { trainInWorker } from '../../services/learning/client';
-import type { LocalModel } from '../../services/learning/types';
+import type { LocalModel, ModelSnapshot } from '../../services/learning/types';
 
-interface Props { records: ReviewRecord[]; model: LocalModel | null; onModel: (model: LocalModel) => Promise<void>; onLibrary: () => void }
-const pct = (n: number | null) => n === null ? '—' : `${Math.round(n * 100)} %`;
-export default function LearningView({ records, model, onModel, onLibrary }: Props) {
+interface Props { records: ReviewRecord[]; model: LocalModel | null; history: ModelSnapshot[]; stale: boolean; onModel: (model: LocalModel) => Promise<void>; onLibrary: () => void }
+const pct = (n: number | null | undefined) => n === null || n === undefined ? '—' : `${Math.round(n * 100)} %`;
+const fmtWhen = (iso: string) => new Date(iso).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
+export default function LearningView({ records, model, history, stale, onModel, onLibrary }: Props) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const abort = useRef<AbortController | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
@@ -19,12 +20,25 @@ export default function LearningView({ records, model, onModel, onLibrary }: Pro
     catch (e) { setError(e instanceof Error ? e.message : 'No se pudo entrenar.'); }
     finally { setBusy(false); abort.current = null; }
   };
-  const stale = model && (model.trainingSampleIds.some(id => !records.some(r => r.id === id)) || records.some(r => model.trainingSampleIds.includes(r.id) && r.updatedAt > model.trainedAt));
   return <div className="learning-view"><div className="page-title"><span className="eyebrow">APRENDIZAJE SUPERVISADO / EN TU EQUIPO</span><h2>Tu colección enseña.<br /><em>Los resultados responden.</em></h2><p>Entrena con ejemplos que hayas verificado. Comprueba el resultado con grabaciones que el modelo no ha visto.</p></div>
     <div className="learning-intro"><div className="learning-status"><div className="learning-symbol"><Layers3 size={35} strokeWidth={1.2} /></div><span className="eyebrow">MODELO LOCAL</span><h3>{model ? 'Un primer modelo, medible.' : 'Primero los datos.'}</h3><p>{model ? `Entrenado el ${new Date(model.trainedAt).toLocaleDateString('es')} con ${model.trainingSampleIds.length} muestras.` : 'Todavía no hay un modelo entrenado. Eso es lo correcto: sin ejemplos reales no hay precisión que prometer.'}</p><div className="learning-counters"><span><b>{real.length}</b>Muestras reales</span><span><b>{new Set(real.map(r => r.sourceGroup.trim().toLowerCase()).filter(Boolean)).size}</b>Orígenes</span><span><b>{ready.length} / 5</b>Herramientas listas</span></div><button className="button primary" disabled={!ready.length || busy} onClick={start}><Play size={15} />{busy ? 'Entrenando y validando…' : model ? 'Volver a entrenar' : 'Entrenar modelo local'}</button>{busy && <button className="text-button" onClick={() => abort.current?.abort()}><Square size={12} /> Cancelar</button>}{error && <p role="alert" className="error-text">{error}</p>}{stale && <p className="notice">La colección ha cambiado desde el entrenamiento. Reentrena antes de usar sus sugerencias.</p>}</div>
     <div className="collection-guide"><span className="eyebrow">UN CORPUS QUE SIRVE</span><h3>Cómo empezar bien.</h3>{[{ n: '01', title: 'Conserva el original', text: 'Graba fuentes distintas: voz, percusión, ambientes e instrumentos. Guarda la fuente sin procesar.' }, { n: '02', title: 'Cambia una cosa cada vez', text: 'Exporta versiones con y sin cada efecto. Anota ajustes y momentos; incluye procesos sutiles y evidentes.' }, { n: '03', title: 'Etiqueta lo que sabes', text: 'Marca presencia o ausencia y asigna el mismo grupo al original y sus versiones. Lo incierto queda pendiente.' }, { n: '04', title: 'Amplía y contrasta', text: 'Incluye nuevas grabaciones y mezclas reales. El mínimo habilita una prueba; no certifica robustez.' }].map(s => <div className="guide-step" key={s.n}><span>{s.n}</span><div><h4>{s.title}</h4><p>{s.text}</p></div></div>)}<button className="text-button" onClick={onLibrary}>Ir a etiquetar muestras <ArrowRight size={14} /></button></div></div>
     <section className="panel"><div className="panel-heading"><div><span className="eyebrow">COBERTURA DEL CONJUNTO</span><h3>Una herramienta, dos clases.</h3></div><ShieldCheck size={22} /></div><p className="muted text-small">Mínimo inicial por herramienta: 12 muestras reales y 6 orígenes. Presencia y ausencia deben aparecer en al menos 3 orígenes cada una. Los ejemplos sintéticos quedan excluidos.</p><div className="readiness-table">{readiness.map(row => <div className="readiness-row" key={row.effect}><div><b>{EFFECTS.find(e => e.id === row.effect)!.label}</b><span>{row.distinctGroups} orígenes · {row.labeledRealSamples} muestras</span></div><div className="class-count"><span>Presente</span><b>{row.positiveSamples}</b><div><i style={{ width: `${Math.min(1, row.positiveGroups / 3) * 100}%` }} /></div></div><div className="class-count"><span>Ausente</span><b>{row.negativeSamples}</b><div><i style={{ width: `${Math.min(1, row.negativeGroups / 3) * 100}%` }} /></div></div><span className={`pill ${row.eligible ? 'positive' : ''}`}>{row.eligible ? 'Lista para probar' : 'Faltan ejemplos'}</span></div>)}</div></section>
     {model && <section className="panel"><div className="panel-heading"><div><span className="eyebrow">VALIDACIÓN POR ORIGEN · 3 PARTICIONES</span><h3>Lo que dicen los datos retenidos.</h3></div><FlaskConical size={22} /></div><div className="library-table-wrap"><table className="library-table"><thead><tr><th>Herramienta</th><th>Precisión positiva</th><th>Sensibilidad</th><th>Exactitud equilibrada</th><th>VP / VN / FP / FN</th></tr></thead><tbody>{Object.values(model.effects).map(e => <tr key={e!.effect}><td>{EFFECTS.find(f => f.id === e!.effect)?.label}</td><td>{pct(e!.validation.precision)}</td><td>{pct(e!.validation.recall)}</td><td>{pct(e!.validation.balancedAccuracy)}</td><td className="mono">{Object.values(e!.validation.confusion).join(' / ')}</td></tr>)}</tbody></table></div><p className="library-footnote">Cada grabación de origen se evalúa con un modelo que no entrenó con ninguna de sus versiones. VP/VN: aciertos; FP/FN: errores. Estos resultados describen esta colección, no todos los audios posibles.</p></section>}
+    {history.length > 1 && <section className="panel"><div className="panel-heading"><div><span className="eyebrow">HISTORIAL DE ENTRENAMIENTOS · {history.length}</span><h3>Si mejora, se nota aquí.</h3></div><TrendingUp size={22} /></div>
+      <p className="muted text-small">Exactitud equilibrada de cada herramienta en cada entrenamiento, con la diferencia respecto al anterior. Describe cómo se comporta el modelo sobre esta colección; una colección que crece cambia también la dificultad de la prueba.</p>
+      <div className="library-table-wrap"><table className="library-table"><thead><tr><th>Entrenamiento</th><th>Conjunto</th>{EFFECTS.map(e => <th key={e.id}>{e.label}</th>)}</tr></thead>
+        <tbody>{history.slice().reverse().map((snapshot, i, rows) => { const previous = rows[i + 1]; return <tr key={snapshot.trainedAt}>
+          <td className="mono">{fmtWhen(snapshot.trainedAt)}</td>
+          <td className="mono">{snapshot.sampleCount} muestras · {snapshot.groupCount} orígenes</td>
+          {EFFECTS.map(e => {
+            const current = snapshot.effects[e.id]?.balancedAccuracy ?? null;
+            const before = previous?.effects[e.id]?.balancedAccuracy ?? null;
+            const delta = current !== null && before !== null ? current - before : null;
+            return <td key={e.id} className="mono">{pct(current)}{delta !== null && Math.abs(delta) >= 0.005 && <small className={delta > 0 ? 'trend up' : 'trend down'}>{delta > 0 ? '▲' : '▼'} {Math.abs(Math.round(delta * 100))}</small>}</td>;
+          })}
+        </tr>; })}</tbody></table></div>
+      <p className="library-footnote">Una herramienta sin cifra no llegaba al mínimo de muestras y orígenes en ese entrenamiento. Para comparar de verdad dos modelos hace falta un conjunto de prueba fijo; esta tabla sirve para ver la tendencia, no para certificar precisión.</p></section>}
     <div className="method-note"><FlaskConical size={20} /><p><b>Un modelo base, con límites explícitos.</b> Bosques aleatorios sobre espectro y descriptores globales. No demuestran cómo se produjo un audio ni localizan por sí solos cada efecto. Las sugerencias requieren revisión; para procesos sutiles, conserva y compara la fuente original.</p></div>
   </div>;
 }

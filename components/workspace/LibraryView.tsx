@@ -16,7 +16,9 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('es', { dateStyle:
 export default function LibraryView({ records, busy, rubric, teacher, student, state, onState, onSelect, onRemove, onFiles, onDemo, onImport }: Props) {
   const { query, filter, pageSize } = state;
   const [deleteId, setDeleteId] = useState(''); const input = useRef<HTMLInputElement>(null); const paginationTop = useRef<HTMLDivElement>(null);
-  const visible = useMemo(() => records.filter(r => `${r.name} ${r.sourceGroup} ${r.student?.name ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()) && (filter === 'all' || filter === 'real' && r.origin === 'real' || filter === 'pending' && calculateReview(r, rubric).pending.length > 0 || filter === 'students' && !!r.student)), [records, query, filter, rubric]);
+  // Puntuar toda la colección es caro: se hace al cambiar la colección, la rúbrica o el filtro, nunca al teclear.
+  const pendingIds = useMemo(() => filter === 'pending' ? new Set(records.filter(r => calculateReview(r, rubric).pending.length > 0).map(r => r.id)) : null, [records, rubric, filter]);
+  const visible = useMemo(() => records.filter(r => `${r.name} ${r.sourceGroup} ${r.student?.name ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()) && (filter === 'all' || filter === 'real' && r.origin === 'real' || filter === 'pending' && !!pendingIds?.has(r.id) || filter === 'students' && !!r.student)), [records, query, filter, pendingIds]);
   const pageCount = Math.max(1, Math.ceil(visible.length / pageSize));
   const page = Math.min(state.page, pageCount);
   const pageRecords = visible.slice((page - 1) * pageSize, page * pageSize);

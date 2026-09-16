@@ -245,3 +245,20 @@ button.tl-dot, button.tl-range { cursor: pointer; }
   .pagination-controls button { min-width: 44px; }
   .pagination-gap { padding: 0 1px; }
 }
+
+/* Cabecera del análisis: volver a la lista o volver a la zona de carga sin salir del laboratorio. */
+.back-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 13px; }
+.back-row .back-button { margin-bottom: 0; }
+
+/* Historial de entrenamientos: la diferencia respecto al entrenamiento anterior. */
+.trend { margin-left: 7px; font-size: 10px; letter-spacing: .5px; }
+.trend.up { color: var(--accent); }
+.trend.down { color: #e5b399; }
+
+/* Pantalla de fallo no controlado: salida de emergencia con copia de la colección. */
+.crash-screen { max-width: 620px; margin: 12vh auto; padding: 34px 30px; border: 1px solid #655139; border-radius: 8px; background: #212a1f; color: var(--ink); }
+.crash-screen h2 { font-family: var(--title); font-size: 34px; margin: 14px 0 16px; }
+.crash-screen p { font-size: 12px; line-height: 1.85; color: var(--muted); }
+.crash-screen .toolbar { margin-top: 22px; flex-wrap: wrap; gap: 10px; }
+.crash-details { margin-top: 22px; font-size: 11px; color: var(--muted); }
+.crash-details pre { margin-top: 10px; padding: 12px; border-radius: 5px; background: #1a2118; font-family: var(--mono); font-size: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }

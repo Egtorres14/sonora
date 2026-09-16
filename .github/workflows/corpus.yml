@@ -28,7 +28,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Entrenar y validar
-        run: npx tsx scripts/contrib/train-community.ts public/corpus/coleccion.json corpus/contributions/*.json
+        # --out escribe el modelo donde la aplicación lo descarga (services/corpus.ts).
+        run: npx tsx scripts/contrib/train-community.ts public/corpus/coleccion.json corpus/contributions/*.json --out public/corpus/modelo.json
       - name: Resumen
         run: cat corpus-out/VALIDACION-CI.md >> "$GITHUB_STEP_SUMMARY"
       - name: Comentar en el PR
@@ -43,3 +44,17 @@ jobs:
         run: |
           gh release view modelo-comunitario >/dev/null 2>&1 || gh release create modelo-comunitario --title "Modelo comunitario" --notes "Modelo local entrenado en CI con el corpus del repositorio. Se actualiza automáticamente."
           gh release upload modelo-comunitario corpus-out/community-model.json corpus-out/VALIDACION-CI.md --clobber
+
+      # Sin este paso el modelo entrenado se queda en la release y la aplicación sigue sirviendo el anterior.
+      - name: Actualizar el modelo que descarga la aplicación
+        if: github.event_name != 'pull_request'
+        run: |
+          if git diff --quiet -- public/corpus/modelo.json; then
+            echo "El modelo publicado no ha cambiado."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/corpus/modelo.json
+          git commit -m "Modelo comunitario reentrenado con el corpus actual"
+          git push origin HEAD:main

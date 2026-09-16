@@ -15,6 +15,12 @@ export interface ReviewRecord {
   name: string;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Última vez que cambió algo que el modelo local aprende (mediciones, etiquetas, grupo de origen,
+   * procedencia). Escribir la sinopsis o el feedback no lo mueve: un entrenamiento sigue siendo válido.
+   * Ausente en registros anteriores a este campo; quien lo consulta usa `updatedAt` como respaldo.
+   */
+  trainingUpdatedAt?: string;
   features: AudioFeatures;
   origin: 'real' | 'synthetic';
   sourceGroup: string;
@@ -30,21 +36,32 @@ export interface ReviewRecord {
   student?: { name: string; submittedAt: string };
   /** El profesor ha publicado la nota y el feedback para el estudiante. */
   published?: boolean;
+  /** Segunda opinión pedida por el profesor. No la ve el estudiante. */
   ai?: AudioEvaluation;
+  /** Lectura orientativa pedida por el estudiante sobre su propia entrega. */
+  reading?: AudioEvaluation;
 }
 
 export const createReview = (id: string, name: string, features: AudioFeatures, origin: ReviewRecord['origin'] = 'real'): ReviewRecord => ({
-  id, name, features, origin, sourceGroup: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  id, name, features, origin, sourceGroup: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), trainingUpdatedAt: new Date().toISOString(),
   labels: Object.fromEntries(EFFECTS.map(e => [e.id, 'unknown'])) as EffectLabels,
   evidence: Object.fromEntries(EFFECTS.map(e => [e.id, ''])) as Record<ToolId, string>,
   synopsis: '', context: '', notes: '', overprocessing: 'unknown', extra: 'unknown', manualScore: null,
 });
 
+/** ¿El cambio afecta a lo que aprende el modelo local? Solo entonces caduca un entrenamiento. */
+export const changesTraining = (record: ReviewRecord, patch: Partial<ReviewRecord>): boolean =>
+  (patch.features !== undefined && patch.features !== record.features)
+  || (patch.origin !== undefined && patch.origin !== record.origin)
+  || (patch.sourceGroup !== undefined && patch.sourceGroup !== record.sourceGroup)
+  || (patch.labels !== undefined && EFFECTS.some(e => patch.labels![e.id] !== record.labels[e.id]));
+
 export const updateReview = (record: ReviewRecord, patch: Partial<ReviewRecord>, maxScore = 30.5): ReviewRecord => {
   if (patch.manualScore !== undefined && patch.manualScore !== null && (!Number.isFinite(patch.manualScore) || patch.manualScore < 0 || patch.manualScore > maxScore)) {
     throw new Error(`La nota manual debe estar entre 0 y ${maxScore.toLocaleString('es')}.`);
   }
-  return { ...record, ...patch, id: record.id, updatedAt: new Date().toISOString() };
+  const now = new Date().toISOString();
+  return { ...record, ...patch, id: record.id, updatedAt: now, trainingUpdatedAt: changesTraining(record, patch) ? now : record.trainingUpdatedAt ?? record.updatedAt };
 };
 
 export const calculateReview = (record: ReviewRecord, r: RubricConfig = DEFAULT_RUBRIC) => {

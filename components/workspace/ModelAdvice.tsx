@@ -26,7 +26,9 @@ export default function ModelAdvice({ record, analyzed, model, engines, teacher,
   const modelInfo = external ? findModel(engines.models[external]) : null;
   const runs = teacher ? engines.runs : 1;
   const cost = external ? engineCost(engines, record.features.format.duration, runs) : 0;
-  const alreadyRead = !teacher && !!record.ai;
+  // La segunda opinión del profesor y la lectura del estudiante son consultas distintas y se guardan aparte.
+  const stored = teacher ? record.ai : record.reading;
+  const alreadyRead = !teacher && !!record.reading;
 
   const reinforce = engines.analysisMode === 'refuerzo';
   /** Modo refuerzo: solo el profesor comparte con el modelo el clasificador local y sus decisiones (el estudiante no ve decisiones sin publicar). */
@@ -42,11 +44,11 @@ export default function ModelAdvice({ record, analyzed, model, engines, teacher,
     const controller = new AbortController(); abort.current = controller; setBusy(true); setError('');
     try {
       const ai = await evaluateProject({ fileName: record.name, analyzed, synopsis: record.synopsis, context: record.context, audience: teacher ? 'teacher' : 'student', hints, llm: { provider: external, model: engines.models[external], runs, apiKey, signal: controller.signal }, onStage: setStage });
-      if (!controller.signal.aborted) onChange({ ai });
+      if (!controller.signal.aborted) onChange(teacher ? { ai } : { reading: ai });
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo consultar al proveedor.'); }
     finally { setBusy(false); setStage(''); abort.current = null; }
   };
-  const ai = record.ai;
+  const ai = stored;
 
   return <div className="model-advice">
     {teacher && <div className="local-advice"><h4>Clasificador local</h4>{!model ? <p>No hay un modelo disponible. Reúne muestras etiquetadas en la biblioteca y entrénalo desde «Modelo local».</p> : seen ? <p>Esta muestra o su grupo ya formaron parte del entrenamiento. Una predicción aquí no sería evidencia independiente.</p> : <div className="suggestion-list">{prediction.map(p => <div key={p.effect}><b>{EFFECTS.find(e => e.id === p.effect)?.label}</b><span>{p.predicted === null ? 'Se abstiene' : p.predicted ? 'Sugiere presencia' : 'Sugiere ausencia'}</span><p>{p.voteShare === null ? '' : `${Math.round(p.voteShare * 100)} % de votos por presencia. `}{p.explanation}</p></div>)}</div>}</div>}

@@ -46,10 +46,19 @@ export const parseTimeRanges = (text: string): TimeRange[] => {
 
 export const fmtRange = (r: TimeRange) => (r.end !== undefined ? `${formatTimestamp(r.start)}–${formatTimestamp(r.end)}` : formatTimestamp(r.start));
 
-export const buildEvidence = (record: ReviewRecord, rubric: RubricConfig = DEFAULT_RUBRIC): EvidenceItem[] => {
+/** Quién mira la lista. Cambia qué evidencias son suyas y cuáles todavía no le corresponden. */
+export type EvidenceAudience = 'teacher' | 'student';
+
+/**
+ * Las mediciones las ve todo el mundo. Las decisiones del profesor solo llegan al estudiante cuando
+ * la revisión está publicada, y cada uno ve la lectura del modelo que ha pedido: el profesor su
+ * segunda opinión, el estudiante la suya.
+ */
+export const buildEvidence = (record: ReviewRecord, rubric: RubricConfig = DEFAULT_RUBRIC, audience: EvidenceAudience = 'teacher'): EvidenceItem[] => {
   const f = record.features;
   const score = calculateReview(record, rubric);
   const items: EvidenceItem[] = [];
+  const showsTeacher = audience === 'teacher' || !!record.published;
 
   // --- Medido en el archivo ---
   const clicks = f.clicks.events.filter((e) => e.confidence >= rubric.technical.clickMinConfidence);
@@ -71,7 +80,7 @@ export const buildEvidence = (record: ReviewRecord, rubric: RubricConfig = DEFAU
   }
 
   // --- Anotado por el profesor ---
-  for (const effect of EFFECTS) {
+  if (showsTeacher) for (const effect of EFFECTS) {
     const label = record.labels[effect.id];
     if (label === 'unknown') continue;
     const line = score.creative.lines.find((l) => l.criterio.toLowerCase() === effect.label.toLowerCase());
@@ -80,14 +89,14 @@ export const buildEvidence = (record: ReviewRecord, rubric: RubricConfig = DEFAU
     if (ranges.length) ranges.forEach((r, i) => items.push({ id: `teacher-${effect.id}-${i}`, time: r.start, end: r.end, criterio: `${effect.label} ${label === 'present' ? 'confirmado' : 'ausente'}`, source: 'profesor', detalle, puntos: i === 0 ? line?.puntos ?? 0 : null, effect: effect.id }));
     else items.push({ id: `teacher-${effect.id}`, criterio: `${effect.label} ${label === 'present' ? 'confirmado' : 'ausente'}`, source: 'profesor', detalle, puntos: line?.puntos ?? 0, effect: effect.id });
   }
-  if (record.overprocessing !== 'unknown') {
+  if (showsTeacher && record.overprocessing !== 'unknown') {
     const line = score.creative.lines.find((l) => l.criterio === 'Sobreprocesamiento');
     items.push({ id: 'teacher-over', criterio: 'Sobreprocesamiento', source: 'profesor', detalle: line?.detalle ?? '', puntos: line?.puntos ?? 0 });
   }
-  if (record.extra !== 'unknown') items.push({ id: 'teacher-extra', criterio: 'Efectos extra', source: 'profesor', detalle: record.extra === 'present' ? 'Confirmados' : 'No se aprecian', puntos: record.extra === 'present' ? score.bonus : 0 });
+  if (showsTeacher && record.extra !== 'unknown') items.push({ id: 'teacher-extra', criterio: 'Efectos extra', source: 'profesor', detalle: record.extra === 'present' ? 'Confirmados' : 'No se aprecian', puntos: record.extra === 'present' ? score.bonus : 0 });
 
   // --- Sugerido por un modelo externo ---
-  const ai = record.ai;
+  const ai = audience === 'teacher' ? record.ai : record.reading;
   if (ai) {
     for (const tool of ai.evaluacion_creatividad_y_procesamiento.herramientas_utilizadas) {
       if (!tool.detectado) continue;

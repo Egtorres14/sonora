@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { analyzeFile, type AnalyzedAudio } from '../../services/audio';
 import { decodePcm, encodeWavFloat32 } from '../../services/audio/wav';
 import { createDemo, type DemoId } from '../../services/audio/demos';
 import { library, parseDataset } from '../../services/library';
 import { fetchCorpusCollection, fetchCorpusModel } from '../../services/corpus';
 import { createReview, updateReview, type ReviewRecord } from '../../services/review';
-import type { LocalModel } from '../../services/learning/types';
+import { createSaveQueue, type SaveQueue } from '../../services/save-queue';
+import { isQuotaError, readStorageState, requestPersistentStorage, storageWarning } from '../../services/storage';
+import { isModelStale } from '../../services/learning/model';
+import type { LocalModel, ModelSnapshot } from '../../services/learning/types';
 import { loadSession, saveSession, clearSession, studentKey, type Session } from '../../services/session';
 import { loadRubric, saveRubric, resetRubric } from '../../services/rubric-store';
 import { loadEngineSettings, saveEngineSettings, type EngineSettings } from '../../services/engines';
@@ -20,7 +23,7 @@ const useAudioUrl = (blob: Blob | null) => {
   return url;
 };
 /** Campos que un estudiante puede modificar en su propia entrega. */
-const STUDENT_FIELDS: (keyof ReviewRecord)[] = ['synopsis', 'ai'];
+const STUDENT_FIELDS: (keyof ReviewRecord)[] = ['synopsis', 'reading'];
 
 export default function useWorkspace() {
   const [session, setSession] = useState<Session | null>(() => loadSession());
@@ -28,13 +31,22 @@ export default function useWorkspace() {
   const [engines, setEnginesState] = useState<EngineSettings>(() => loadEngineSettings());
   const [allRecords, setAllRecords] = useState<ReviewRecord[]>([]), recordsRef = useRef<ReviewRecord[]>([]);
   const [model, setModel] = useState<LocalModel | null>(null);
+  const [modelHistory, setModelHistory] = useState<ModelSnapshot[]>([]);
   const [view, setView] = useState<WorkspaceView>('lab');
   const [selectedId, setSelectedId] = useState('');
   const [analyzed, setAnalyzed] = useState<AnalyzedAudio | null>(null), [blob, setBlob] = useState<Blob | null>(null);
   const [referenceId, setReferenceId] = useState(''), [referenceBlob, setReferenceBlob] = useState<Blob | null>(null);
   const [busy, setBusy] = useState(false), [stage, setStage] = useState(''), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(0);
-  const abort = useRef<AbortController | null>(null), saveQueue = useRef(Promise.resolve());
+  const abort = useRef<AbortController | null>(null);
+  const saves = useRef<SaveQueue | null>(null);
+  if (!saves.current) saves.current = createSaveQueue(record => library.save(record), {
+    onPendingChange: setSaving,
+    onError: error => setError(isQuotaError(error)
+      ? 'No queda espacio en este navegador para guardar la corrección. Exporta la colección, elimina muestras que ya no necesites y vuelve a intentarlo.'
+      : 'No se pudo guardar la última corrección. Exporta el informe antes de cerrar y comprueba el espacio disponible.'),
+  });
+  const saveQueue = saves.current;
   const referenceRequest = useRef(0);
   const audioUrl = useAudioUrl(blob), referenceUrl = useAudioUrl(referenceBlob);
   const isTeacher = session?.role === 'teacher';
@@ -44,12 +56,14 @@ export default function useWorkspace() {
   const maxManual = rubric.totalPoints + rubric.bonus.points;
   const replaceRecords = (next: ReviewRecord[]) => { recordsRef.current = next; setAllRecords(next); };
   const refresh = async () => replaceRecords(await library.list());
-  useEffect(() => { let live = true; Promise.all([library.list(), library.model()]).then(([items, savedModel]) => { if (live) { replaceRecords(items); setModel(savedModel ?? null); } }).catch(() => { if (live) setError('No se puede abrir el almacenamiento local. Permite el almacenamiento de este sitio para guardar tu colección.'); }); return () => { live = false; abort.current?.abort(); }; }, []);
-  useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (saving > 0) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [saving]);
+  useEffect(() => { let live = true; Promise.all([library.list(), library.model(), library.modelHistory()]).then(([items, savedModel, history]) => { if (live) { replaceRecords(items); setModel(savedModel ?? null); setModelHistory(history); } }).catch(() => { if (live) setError('No se puede abrir el almacenamiento local. Permite el almacenamiento de este sitio para guardar tu colección.'); }); return () => { live = false; abort.current?.abort(); void saveQueue.flush(); }; }, [saveQueue]);
+  // El audio vive en IndexedDB: sin persistencia concedida el navegador puede desalojarlo sin avisar.
+  useEffect(() => { let live = true; void requestPersistentStorage().then(() => readStorageState()).then(state => { const warning = storageWarning(state); if (live && warning) setNotice(warning); }); return () => { live = false; }; }, []);
+  useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (saving > 0) { void saveQueue.flush(); event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [saving, saveQueue]);
 
   const resetSelection = () => { referenceRequest.current++; setSelectedId(''); setAnalyzed(null); setBlob(null); setReferenceId(''); setReferenceBlob(null); };
   const enter = (next: Session) => { saveSession(next); setSession(next); resetSelection(); setView('lab'); setError(''); setNotice(''); };
-  const leave = () => { abort.current?.abort(); clearSession(); setSession(null); resetSelection(); setView('lab'); setError(''); setNotice(''); };
+  const leave = () => { abort.current?.abort(); void saveQueue.flush(); clearSession(); setSession(null); resetSelection(); setView('lab'); setError(''); setNotice(''); };
   const setRubric = (next: RubricConfig) => { try { setRubricState(saveRubric(next)); setNotice('Rúbrica guardada en este navegador. Las notas se recalculan con ella.'); } catch (e) { setError(e instanceof Error ? e.message : 'Rúbrica inválida.'); } };
   const updateEngines = (next: EngineSettings) => { const saved = saveEngineSettings(next); setEnginesState(next); return saved; };
   const setEngines = (next: EngineSettings) => {
@@ -62,13 +76,13 @@ export default function useWorkspace() {
     const current = recordsRef.current.find(r => r.id === id); if (!current) return;
     if (!isTeacher) {
       if (!owns(current)) return;
-      patch = Object.fromEntries(Object.entries(patch).filter(([k]) => STUDENT_FIELDS.includes(k as keyof ReviewRecord) && (k !== 'ai' || (engines.studentAccess && !current.ai)))) as Partial<ReviewRecord>;
+      patch = Object.fromEntries(Object.entries(patch).filter(([k]) => STUDENT_FIELDS.includes(k as keyof ReviewRecord) && (k !== 'reading' || (engines.studentAccess && !current.reading)))) as Partial<ReviewRecord>;
       if (!Object.keys(patch).length) return;
     }
     try {
       const next = updateReview(current, patch, maxManual);
-      replaceRecords(recordsRef.current.map(r => r.id === id ? next : r)); setSaving(n => n + 1);
-      saveQueue.current = saveQueue.current.then(() => library.save(next)).catch(() => setError('No se pudo guardar la última corrección. Exporta el informe antes de cerrar y comprueba el espacio disponible.')).finally(() => setSaving(n => n - 1));
+      replaceRecords(recordsRef.current.map(r => r.id === id ? next : r));
+      saveQueue.queue(next);
     } catch (e) { setError(e instanceof Error ? e.message : 'Cambio inválido.'); }
   };
   const select = async (record: ReviewRecord) => {
@@ -95,7 +109,7 @@ export default function useWorkspace() {
     let first: { record: ReviewRecord; analysis: AnalyzedAudio | null; audio: File } | null = null;
     const student = session.role === 'student' && session.studentName ? { name: session.studentName, submittedAt: new Date().toISOString() } : undefined;
     try {
-      await saveQueue.current;
+      await saveQueue.flush();
       for (const [i, file] of inputs.entries()) {
         if (controller.signal.aborted) break;
         const prefix = `${i + 1}/${inputs.length} · ${file.name}`;
@@ -136,12 +150,12 @@ export default function useWorkspace() {
   const demo = (id: DemoId) => { if (!busy && isTeacher) void files([createDemo(id)], 'synthetic'); };
   const remove = async (record: ReviewRecord) => {
     if (!isTeacher) return;
-    try { await saveQueue.current; await library.remove(record.id); if (selectedId === record.id) { setSelectedId(''); setBlob(null); setAnalyzed(null); } await refresh(); setNotice('Muestra eliminada de este navegador.'); }
+    try { await saveQueue.flush(); await library.remove(record.id); if (selectedId === record.id) { setSelectedId(''); setBlob(null); setAnalyzed(null); } await refresh(); setNotice('Muestra eliminada de este navegador.'); }
     catch { setError('No se pudo eliminar la muestra.'); }
   };
   const importFile = async (file: File) => {
     if (busy || !isTeacher) return; setBusy(true); setError(''); setStage('Comprobando colección…');
-    try { if (file.size > 50 * 1024 * 1024) throw new Error('El JSON supera 50 MB.'); const imported = parseDataset(await file.text()); await saveQueue.current; const result = await library.importRecords(imported); await refresh(); setNotice(`${result.added} registros importados · ${result.skipped} duplicados conservados. El JSON no incluye audio.`); }
+    try { if (file.size > 50 * 1024 * 1024) throw new Error('El JSON supera 50 MB.'); const imported = parseDataset(await file.text()); await saveQueue.flush(); const result = await library.importRecords(imported); await refresh(); setNotice(`${result.added} registros importados · ${result.skipped} duplicados conservados. El JSON no incluye audio.`); }
     catch (e) { setError(e instanceof Error ? e.message : 'No se pudo importar.'); }
     finally { setBusy(false); setStage(''); }
   };
@@ -150,12 +164,12 @@ export default function useWorkspace() {
     if (busy || !isTeacher) return; setBusy(true); setError(''); setStage('Descargando la colección del corpus…');
     try {
       const records = await fetchCorpusCollection();
-      await saveQueue.current; const result = await library.importRecords(records); await refresh();
+      await saveQueue.flush(); const result = await library.importRecords(records); await refresh();
       let modelNote = '';
       if (withModel) {
         setStage('Descargando el modelo entrenado…');
         const published = await fetchCorpusModel();
-        if (published) { await library.saveModel(published); setModel(published); modelNote = ' · modelo entrenado cargado'; }
+        if (published) { await library.saveModel(published); setModel(published); setModelHistory(await library.modelHistory()); modelNote = ' · modelo entrenado cargado'; }
       }
       setNotice(`Corpus importado: ${result.added} registros nuevos · ${result.skipped} ya estaban${modelNote}. Las mediciones y etiquetas se guardan en este navegador; el audio no.`);
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo importar el corpus.'); }
@@ -174,6 +188,13 @@ export default function useWorkspace() {
     }
     catch { setError('No se pudo cargar la referencia.'); }
   };
-  const saveModel = async (next: LocalModel) => { if (!isTeacher) return; await library.saveModel(next); setModel(next); setNotice('Modelo y resultados de validación guardados en este navegador.'); };
-  return { session, enter, leave, isTeacher, rubric, setRubric, restoreRubric, engines, setEngines, updateEngines, records, allRecords, model, view, setView, selected: records.find(r => r.id === selectedId), analyzed, audioUrl, referenceUrl, referenceId, reference, busy, stage, error, notice, saving, setError, setNotice, change, select, files, demo, remove, importFile, importCorpus, saveModel, cancel: () => abort.current?.abort() };
+  const saveModel = async (next: LocalModel) => { if (!isTeacher) return; await library.saveModel(next); setModel(next); setModelHistory(await library.modelHistory()); setNotice('Modelo y resultados de validación guardados en este navegador.'); };
+  /**
+   * Vuelve a la zona de carga del laboratorio sin salir de él. No se pierde nada: el registro ya
+   * está guardado. Si la muestra todavía se estaba abriendo, se cancela esa lectura: quien pulsa
+   * «subir otro archivo» quiere salir de este, no esperar a que termine de analizarse.
+   */
+  const clearSelection = () => { abort.current?.abort(); resetSelection(); setView('lab'); };
+  const modelStale = useMemo(() => isModelStale(model, allRecords), [model, allRecords]);
+  return { session, enter, leave, isTeacher, rubric, setRubric, restoreRubric, engines, setEngines, updateEngines, records, allRecords, model, modelHistory, modelStale, view, setView, selected: records.find(r => r.id === selectedId), analyzed, audioUrl, referenceUrl, referenceId, reference, busy, stage, error, notice, saving, setError, setNotice, change, select, files, demo, remove, importFile, importCorpus, saveModel, clearSelection, cancel: () => abort.current?.abort() };
 }
