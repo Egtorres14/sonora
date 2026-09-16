@@ -46,12 +46,22 @@ jobs:
           gh release upload modelo-comunitario corpus-out/community-model.json corpus-out/VALIDACION-CI.md --clobber
 
       # Sin este paso el modelo entrenado se queda en la release y la aplicación sigue sirviendo el anterior.
+      # No basta con `git diff`: trainedAt cambia en cada ejecución, y cada push acababa generando un
+      # commit del bot que hacía rechazar el siguiente. Se compara la huella de lo que importa.
       - name: Actualizar el modelo que descarga la aplicación
         if: github.event_name != 'pull_request'
         run: |
-          if git diff --quiet -- public/corpus/modelo.json; then
-            echo "El modelo publicado no ha cambiado."
+          git show HEAD:public/corpus/modelo.json > corpus-out/modelo-anterior.json 2>/dev/null || : > corpus-out/modelo-anterior.json
+          set +e
+          npx tsx scripts/contrib/model-changed.ts corpus-out/modelo-anterior.json public/corpus/modelo.json
+          status=$?
+          set -e
+          if [ "$status" -eq 1 ]; then
+            git checkout -- public/corpus/modelo.json
             exit 0
+          fi
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
