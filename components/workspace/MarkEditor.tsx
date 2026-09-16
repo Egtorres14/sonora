@@ -7,9 +7,12 @@ import type { ToolId } from '../../services/scoring/rubric';
 interface Props {
   record: ReviewRecord;
   duration: number;
-  /** Herramienta en modo marcado, o null si está desactivado. */
-  marking: ToolId | null;
-  onMarking: (effect: ToolId | null) => void;
+  /** Herramienta que se marcará. Se elige aunque el modo marcado esté apagado. */
+  tool: ToolId;
+  onTool: (effect: ToolId) => void;
+  /** Modo marcado por arrastre sobre la onda. */
+  marking: boolean;
+  onMarking: (active: boolean) => void;
   /** Posición del cursor de reproducción, para «marcar desde aquí». */
   currentTime: number;
   canSeek: boolean;
@@ -22,23 +25,22 @@ interface Props {
 const labelOf = (effect: ToolId) => EFFECTS.find(e => e.id === effect)?.label ?? effect;
 
 /** Barra de marcado y lista editable. La lista funciona sin ratón y sin audio. */
-export default function MarkEditor({ record, duration, marking, onMarking, currentTime, canSeek, onSeek, onAdd, onUpdate, onRemove }: Props) {
+export default function MarkEditor({ record, duration, tool, onTool, marking, onMarking, currentTime, canSeek, onSeek, onAdd, onUpdate, onRemove }: Props) {
   const marks = record.marks ?? [];
-  const active: ToolId = marking ?? 'reversa';
-  const fromCursor = () => onAdd(createMark(active, currentTime, currentTime + 1, duration));
+  const fromCursor = () => onAdd(createMark(tool, currentTime, currentTime + 1, duration));
 
   return <div className="mark-editor">
     <div className="mark-toolbar">
       <MapPin size={16} />
       <label className="visually-hidden" htmlFor="mark-effect">Herramienta que vas a marcar</label>
-      <select id="mark-effect" value={active} onChange={e => onMarking(marking ? e.target.value as ToolId : null)}>
+      <select id="mark-effect" value={tool} onChange={e => onTool(e.target.value as ToolId)}>
         {EFFECTS.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
       </select>
-      <button type="button" className={`button ${marking ? 'primary' : 'secondary'}`} aria-pressed={!!marking} onClick={() => onMarking(marking ? null : active)}>
+      <button type="button" className={`button ${marking ? 'primary' : 'secondary'}`} aria-pressed={marking} onClick={() => onMarking(!marking)}>
         {marking ? 'Marcando…' : 'Marcar'}
       </button>
       <button type="button" className="button secondary" onClick={fromCursor}><Plus size={14} /> Marcar desde el tiempo actual</button>
-      <small className="muted text-small">{marking ? `Arrastra sobre la onda para marcar ${labelOf(active).toLowerCase()}.` : 'Activa «Marcar» y arrastra sobre la onda, o añade la marca desde el cursor y ajusta los tiempos abajo.'}</small>
+      <small className="muted text-small">{marking ? `Arrastra sobre la onda para marcar ${labelOf(tool).toLowerCase()}.` : 'Activa «Marcar» y arrastra sobre la onda, o añade la marca desde el cursor y ajusta los tiempos abajo.'}</small>
     </div>
 
     {marks.length === 0

@@ -24,13 +24,14 @@ export default function AnalysisView({ record, analyzed, audioUrl, records, mode
   const [spectrum, setSpectrum] = useState('');
   const [tab, setTab] = useState<'wave' | 'spectrum'>('wave');
   const [advice, setAdvice] = useState(false);
-  const [marking, setMarking] = useState<ToolId | null>(null);
+  const [tool, setTool] = useState<ToolId>('reversa');
+  const [marking, setMarking] = useState(false);
   const [markNotice, setMarkNotice] = useState('');
   const seekRef = useRef<((time: number) => void) | null>(null);
   const [playTime, setPlayTime] = useState(0);
   const reviewRef = useRef<HTMLDivElement>(null);
   const signalRef = useRef<HTMLElement>(null);
-  useEffect(() => { setSpectrum(''); setTab('wave'); setAdvice(false); setPlayTime(0); setMarking(null); setMarkNotice(''); }, [record.id]);
+  useEffect(() => { setSpectrum(''); setTab('wave'); setAdvice(false); setPlayTime(0); setMarking(false); setMarkNotice(''); }, [record.id]);
   useEffect(() => { if (tab !== 'spectrum' || !analyzed || spectrum) return; const frame = requestAnimationFrame(() => { const image = renderSpectrogramPng(analyzed.channels, analyzed.sampleRate, { width: 1100, height: 340, fftSize: 2048 }); setSpectrum(`data:image/png;base64,${image.base64}`); }); return () => cancelAnimationFrame(frame); }, [tab, analyzed, spectrum]);
   const reference = records.find(r => r.id === referenceId);
   const score = calculateReview(record, rubric);
@@ -58,10 +59,10 @@ export default function AnalysisView({ record, analyzed, audioUrl, records, mode
     <Metrics features={record.features} />
     <section className="panel signal-panel" ref={signalRef}><div className="panel-heading"><div><span className="eyebrow">EXPLORADOR DE SEÑAL</span><h3>Escucha dónde ocurre.</h3></div><div className="segmented" aria-label="Vista de audio"><button aria-pressed={tab === 'wave'} className={tab === 'wave' ? 'selected' : ''} onClick={() => setTab('wave')}>Forma de onda</button><button disabled={!analyzed} aria-pressed={tab === 'spectrum'} className={tab === 'spectrum' ? 'selected' : ''} onClick={() => setTab('spectrum')}>Espectrograma</button></div></div>
       {tab === 'spectrum' && <div className="spectrogram">{spectrum ? <img src={spectrum} alt="Espectrograma del audio: tiempo horizontal, frecuencia vertical y nivel representado por color." /> : <p>Generando espectrograma local…</p>}</div>}
-      {audioUrl ? <AudioPlayer src={audioUrl} features={record.features} extraMarkers={extraMarkers} seekRef={seekRef} onTime={setPlayTime} zoomable={teacher} markEditing={marking ? { color: EFFECT_COLOR[marking] } : null} onMarkCreate={(start, end) => addMarkHere(createMark(marking ?? 'reversa', start, end, duration))} onMarkUpdate={(id, start, end) => applyMark(updateMark(record, id, { start, end }, duration))} /> : <div className="empty-audio">Este registro contiene métricas y etiquetas. Vuelve a subir el audio original para escucharlo; se reconocerá por su huella.</div>}
+      {audioUrl ? <AudioPlayer src={audioUrl} features={record.features} extraMarkers={extraMarkers} seekRef={seekRef} onTime={setPlayTime} zoomable={teacher} markEditing={marking ? { color: EFFECT_COLOR[tool] } : null} onMarkCreate={(start, end) => addMarkHere(createMark(tool, start, end, duration))} onMarkUpdate={(id, start, end) => applyMark(updateMark(record, id, { start, end }, duration))} /> : <div className="empty-audio">Este registro contiene métricas y etiquetas. Vuelve a subir el audio original para escucharlo; se reconocerá por su huella.</div>}
       {teacher && <>
         {markNotice && <p className="notice" role="status">{markNotice}</p>}
-        <MarkEditor record={record} duration={duration} marking={marking} onMarking={setMarking} currentTime={playTime} canSeek={!!audioUrl} onSeek={seek}
+        <MarkEditor record={record} duration={duration} tool={tool} onTool={setTool} marking={marking} onMarking={setMarking} currentTime={playTime} canSeek={!!audioUrl} onSeek={seek}
           onAdd={addMarkHere}
           onUpdate={(id, changes) => applyMark(updateMark(record, id, changes, duration))}
           onRemove={id => applyMark(removeMark(record, id))} />

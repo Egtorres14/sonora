@@ -307,3 +307,41 @@ test('el estudiante no ve las decisiones del profesor hasta que se publican', as
   await page.getByRole('button', { name: /^campana_validacion/ }).click();
   await expect(page.locator('.evidence-panel')).toContainText('Reversa confirmado');
 });
+
+test('el profesor marca sin ratón, la etiqueta se propone y la marca aparece como evidencia', async ({ page }) => {
+  await page.getByLabel('Subir archivos de audio').setInputFiles(audio());
+  await expect(page.getByRole('heading', { name: 'campana_validacion.wav', exact: true })).toBeVisible();
+
+  await page.getByLabel('Herramienta que vas a marcar').selectOption('reversa');
+  await page.getByRole('button', { name: 'Marcar desde el tiempo actual' }).click();
+
+  // La etiqueta pendiente pasa a «presente» y se avisa
+  await expect(page.getByText(/Reversa pasa a «presente»/)).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Revisión de Reversa' }).getByRole('button', { name: 'Presente' })).toHaveAttribute('aria-pressed', 'true');
+
+  // Los tiempos se ajustan con los campos numéricos y el comentario llega a las evidencias
+  await page.getByLabel('Final de la marca de Reversa').fill('4.5');
+  await page.getByLabel('Comentario de la marca de Reversa').fill('Cola invertida');
+  await expect(page.locator('.evidence-panel')).toContainText('Cola invertida');
+
+  // Borrar la marca no devuelve la etiqueta a pendiente
+  await page.getByRole('button', { name: 'Borrar la marca de Reversa' }).click();
+  await expect(page.locator('.mark-list')).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Revisión de Reversa' }).getByRole('button', { name: 'Presente' })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('las marcas sobreviven a recargar y el zoom está disponible', async ({ page }) => {
+  await page.getByLabel('Subir archivos de audio').setInputFiles(audio());
+  await expect(page.getByRole('heading', { name: 'campana_validacion.wav', exact: true })).toBeVisible();
+  await page.getByLabel('Herramienta que vas a marcar').selectOption('loops');
+  await page.getByRole('button', { name: 'Marcar desde el tiempo actual' }).click();
+  await page.getByLabel('Comentario de la marca de Loops').fill('Bucle de dos compases');
+  await expect(page.getByRole('button', { name: '200 px/s' })).toBeVisible();
+
+  // La cola de guardado (services/save-queue.ts) agrupa las escrituras: hay que dejarla vaciar.
+  await expect(page.locator('.workspace-topline')).not.toContainText('Guardando cambios');
+  await page.reload();
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await expect(page.getByLabel('Comentario de la marca de Loops')).toHaveValue('Bucle de dos compases');
+});
