@@ -9,6 +9,7 @@ const ratio = n.min(0).max(1);
 const db = z.union([n, z.literal('Infinity'), z.literal('-Infinity'), z.null()]).transform(v => v === 'Infinity' ? Infinity : v === '-Infinity' || v === null ? -Infinity : v);
 const text = z.string().max(20_000);
 const label = z.enum(['unknown', 'present', 'absent']);
+const publishedGrade = z.object({ publishedAt: z.string().datetime(), final: n.min(0).max(200), maxTotal: n, formal: n, formalMax: n, technical: n, technicalMax: n, creative: n, creativeMax: n, bonus: n, manual: z.boolean() });
 // Misma mayor y menor ≤ la del código (services/audio/version.ts). Un literal destruía toda
 // colección exportada en cuanto cambiaba la versión.
 const featureVersion = z.string().refine(acceptsFeatureVersion, 'Versión de características no compatible con esta aplicación');
@@ -52,5 +53,7 @@ export const ReviewSchema = z.object({
   manualScore: n.min(0).max(200).nullable(),
   student: z.object({ name: z.string().min(1).max(60), submittedAt: z.string().datetime() }).optional(),
   published: z.boolean().optional(),
+  // Opcional: los registros publicados antes de la instantánea siguen valiendo y muestran el cálculo vivo.
+  publishedGrade: publishedGrade.optional(),
 });
 export const DatasetSchema = z.object({ version: z.literal(1), records: z.array(ReviewSchema).max(10000) });

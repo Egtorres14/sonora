@@ -37,6 +37,8 @@ Si tu profesor lo ha permitido, puedes pedir una vez por entrega una lectura de 
 
 En **Mis entregas** aparecerá **Publicada** cuando el profesor termine. Ahí verás la nota, el desglose por criterios y su feedback.
 
+La nota que ves es la que tu profesor publicó, y no cambia aunque después ajuste la rúbrica o revise otra vez el archivo. Si vuelve a publicar, verás la nueva nota.
+
 ## Sobre tu privacidad
 
 Tu audio no se sube a ningún servidor: se analiza y se guarda en el navegador del equipo donde entregas. Si el profesor recoge las entregas en otro equipo, sigue sus instrucciones para hacérselas llegar.

@@ -10,6 +10,8 @@ export const EFFECTS: { id: ToolId; label: string; hint: string }[] = [
   { id: 'loops', label: 'Loops', hint: 'Localiza repeticiones y verifica sus límites. Es opcional en esta rúbrica.' },
 ];
 export type ReviewLabel = 'unknown' | 'present' | 'absent';
+/** Nota tal como se publicó. Ver `ReviewRecord.publishedGrade`. */
+export interface PublishedGrade { publishedAt: string; final: number; maxTotal: number; formal: number; formalMax: number; technical: number; technicalMax: number; creative: number; creativeMax: number; bonus: number; manual: boolean }
 export type EffectLabels = Record<ToolId, ReviewLabel>;
 export interface ReviewRecord {
   id: string;
@@ -37,6 +39,12 @@ export interface ReviewRecord {
   student?: { name: string; submittedAt: string };
   /** El profesor ha publicado la nota y el feedback para el estudiante. */
   published?: boolean;
+  /**
+   * Nota tal como se publicó: es lo que ve el estudiante aunque después cambien la rúbrica, las
+   * etiquetas o las mediciones. Ausente en registros publicados antes de este campo: entonces se
+   * muestra el cálculo vivo, como siempre.
+   */
+  publishedGrade?: PublishedGrade;
   /** Dónde ocurre cada herramienta, marcado por el profesor sobre la onda. */
   marks?: AudioMark[];
   /** Segunda opinión pedida por el profesor. No la ve el estudiante. */
@@ -94,6 +102,25 @@ export const calculateReview = (record: ReviewRecord, r: RubricConfig = DEFAULT_
   const maximum = +(base + maximumCreative + bonus + (record.extra === 'unknown' ? r.bonus.points : 0)).toFixed(2);
   const calculated = pending.length ? null : minimum;
   return { formal, technical, creative: { total: maximumCreative, minimum: minimumCreative, max: r.creative.maxPoints, lines }, bonus, pending, minimum, maximum, calculated, final: record.manualScore ?? calculated, manual: record.manualScore !== null, maxTotal: r.totalPoints, bonusMax: r.bonus.points, formalMax: r.formal.synopsisPoints + r.formal.fileNamePoints, technicalMax: r.technical.maxPoints };
+};
+
+/** Congela la nota del momento. Lanza si quedan decisiones pendientes: no hay nota que publicar. */
+export const snapshotGrade = (record: ReviewRecord, r: RubricConfig = DEFAULT_RUBRIC): PublishedGrade => {
+  const score = calculateReview(record, r);
+  if (score.final === null) throw new Error(`No se puede publicar con decisiones pendientes: ${score.pending.join(', ')}.`);
+  return { publishedAt: new Date().toISOString(), final: score.final, maxTotal: score.maxTotal, formal: score.formal.total, formalMax: score.formalMax, technical: score.technical.total, technicalMax: score.technicalMax, creative: score.creative.total, creativeMax: score.creative.max, bonus: score.bonus, manual: score.manual };
+};
+/** Publicar y retirar van en un solo parche: la visibilidad y la instantánea nunca quedan a medias. */
+export const publishGrade = (record: ReviewRecord, r: RubricConfig = DEFAULT_RUBRIC): Partial<ReviewRecord> => ({ published: true, publishedGrade: snapshotGrade(record, r) });
+export const withdrawGrade = (): Partial<ReviewRecord> => ({ published: false, publishedGrade: undefined });
+/**
+ * Diferencia entre lo publicado y lo que se calcularía ahora, por cualquier causa: rúbrica editada,
+ * etiqueta retocada o audio reanalizado. `live` es null si la revisión volvió a quedar pendiente.
+ */
+export const gradeDrift = (record: ReviewRecord, r: RubricConfig = DEFAULT_RUBRIC): { published: number; live: number | null } | null => {
+  if (!record.published || !record.publishedGrade) return null;
+  const live = calculateReview(record, r).final;
+  return live === record.publishedGrade.final ? null : { published: record.publishedGrade.final, live };
 };
 
 export const labelProgress = (record: ReviewRecord) => EFFECTS.filter(e => record.labels[e.id] !== 'unknown').length;
