@@ -104,13 +104,20 @@ test('importa corpus de prueba, entrena en worker y conserva el modelo al recarg
   await page.getByLabel('Importar colección JSON').setInputFiles({ name: 'test-corpus.json', mimeType: 'application/json', buffer: Buffer.from(exportDataset(samples)) });
   await expect(page.locator('.notice-banner')).toContainText('24 registros importados');
   await page.getByRole('button', { name: /Modelo local/ }).click();
+  // Se aparta una quinta parte de los 12 orígenes (2 orígenes, 4 muestras) antes de entrenar
+  await page.getByRole('button', { name: 'Congelar conjunto de evaluación' }).click();
+  await expect(page.getByTestId('holdout-panel')).toContainText('4 muestras de 2 orígenes');
   await page.getByRole('button', { name: 'Entrenar modelo local', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Lo que dicen los datos retenidos.' })).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(1);
   await expect(page.locator('tbody tr')).toContainText('Filtros');
+  // La columna «Congelado» lleva la exactitud sobre las 4 muestras apartadas
+  await expect(page.locator('thead')).toContainText('Congelado');
+  await expect(page.locator('tbody tr')).toContainText('(4)');
   await page.reload();
   await page.getByRole('button', { name: /Modelo local/ }).click();
   await expect(page.getByRole('button', { name: 'Volver a entrenar' })).toBeEnabled();
+  await expect(page.getByTestId('holdout-panel')).toContainText('4 muestras de 2 orígenes');
   await expect(page.locator('tbody tr')).toHaveCount(1);
 });
 

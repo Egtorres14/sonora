@@ -18,9 +18,10 @@ export default function ModelAdvice({ record, analyzed, model, engines, teacher,
   const abort = useRef<AbortController | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
   const seen = model?.trainingSampleIds.includes(record.id) || !!record.sourceGroup.trim() && model?.trainingGroupIds.includes(record.sourceGroup.trim().toLowerCase());
+  // Un modelo que no se puede leer (guardado con una forma antigua o de otra versión) se dice, no se calla.
   const prediction = useMemo(() => {
-    if (!model || seen) return [];
-    try { return predictLocalModel(model, record.features); } catch { return []; }
+    if (!model || seen) return { rows: [], unreadable: false };
+    try { return { rows: predictLocalModel(model, record.features), unreadable: false }; } catch { return { rows: [], unreadable: true }; }
   }, [model, seen, record.features]);
   const external = engines.engine === 'local' ? null : engines.engine;
   const apiKey = external ? loadKey(external) : '';
@@ -34,7 +35,7 @@ export default function ModelAdvice({ record, analyzed, model, engines, teacher,
   const reinforce = engines.analysisMode === 'refuerzo';
   /** Modo refuerzo: solo el profesor comparte con el modelo el clasificador local y sus decisiones (el estudiante no ve decisiones sin publicar). */
   const hints: EvaluationHints | undefined = teacher && reinforce ? {
-    local: prediction.map(p => ({ effect: p.effect, predicted: p.predicted, voteShare: p.voteShare, balancedAccuracy: p.validation?.balancedAccuracy ?? null })),
+    local: prediction.rows.map(p => ({ effect: p.effect, predicted: p.predicted, voteShare: p.voteShare, balancedAccuracy: p.validation?.balancedAccuracy ?? null })),
     teacher: EFFECTS.map(e => ({ effect: e.id, label: record.labels[e.id], evidence: record.evidence[e.id] ?? '' })),
     overprocessing: record.overprocessing === 'unknown' ? undefined : record.overprocessing,
     extra: record.extra,
@@ -52,7 +53,7 @@ export default function ModelAdvice({ record, analyzed, model, engines, teacher,
   const ai = stored;
 
   return <div className="model-advice">
-    {teacher && <div className="local-advice"><h4>Clasificador local</h4>{!model ? <p>No hay un modelo disponible. Reúne muestras etiquetadas en la biblioteca y entrénalo desde «Modelo local».</p> : !isCurrentFeatures(record.features) ? <p>Esta muestra se midió con una versión anterior de las características y el clasificador no puede leerla. Ábrela con su audio o vuelve a subir el original para reanalizarla.</p> : seen ? <p>Esta muestra o su grupo ya formaron parte del entrenamiento. Una predicción aquí no sería evidencia independiente.</p> : <div className="suggestion-list">{prediction.map(p => <div key={p.effect}><b>{EFFECTS.find(e => e.id === p.effect)?.label}</b><span>{p.predicted === null ? 'Se abstiene' : p.predicted ? 'Sugiere presencia' : 'Sugiere ausencia'}</span><p>{p.voteShare === null ? '' : `${Math.round(p.voteShare * 100)} % de votos por presencia. `}{p.explanation}</p></div>)}</div>}</div>}
+    {teacher && <div className="local-advice"><h4>Clasificador local</h4>{!model ? <p>No hay un modelo disponible. Reúne muestras etiquetadas en la biblioteca y entrénalo desde «Modelo local».</p> : !isCurrentFeatures(record.features) ? <p>Esta muestra se midió con una versión anterior de las características y el clasificador no puede leerla. Ábrela con su audio o vuelve a subir el original para reanalizarla.</p> : seen ? <p>Esta muestra o su grupo ya formaron parte del entrenamiento. Una predicción aquí no sería evidencia independiente.</p> : prediction.unreadable ? <p className="error-text">El modelo guardado no se puede leer en este navegador. Vuelve a entrenarlo desde «Modelo local».</p> : <div className="suggestion-list">{prediction.rows.map(p => <div key={p.effect}><b>{EFFECTS.find(e => e.id === p.effect)?.label}</b><span>{p.predicted === null ? 'Se abstiene' : p.predicted ? 'Sugiere presencia' : 'Sugiere ausencia'}</span><p>{p.voteShare === null ? '' : `${Math.round(p.voteShare * 100)} % de votos por presencia. `}{p.explanation}</p></div>)}</div>}</div>}
     {external ? <div className="external-advice">
       <div className="engine-summary-row"><span className="eyebrow"><Sparkles size={14} /> {modelInfo?.label ?? engines.models[external]}</span><span className="mono">{runs} ejecución{runs > 1 ? 'es' : ''} · {modelInfo?.free ? 'gratis' : `≈ ${cost.toFixed(3)} $`}{teacher && reinforce ? ' · refuerzo' : ''}</span>{teacher && onEngines && <button className="text-button" onClick={onEngines}>Cambiar motor</button>}</div>
       {teacher && <p className="notice">Se envían el audio preparado o las imágenes, las métricas, el nombre del archivo, la sinopsis y el contexto al proveedor{reinforce ? ', además de las sugerencias del clasificador local y tus decisiones actuales para que las contraste' : ''}. La clave es la guardada en «Motores de IA».</p>}

@@ -1,33 +1,49 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, FlaskConical, Layers3, Play, RefreshCw, ShieldCheck, Square, TrendingUp } from 'lucide-react';
+import { ArrowRight, FlaskConical, Layers3, Lock, Play, RefreshCw, ShieldCheck, Square, TrendingUp } from 'lucide-react';
 import { EFFECTS, type ReviewRecord } from '../../services/review';
-import { splitByFeatureVersion, trainingReadiness } from '../../services/learning/model';
+import { evaluateHoldout, splitByFeatureVersion, trainingReadiness } from '../../services/learning/model';
 import { trainInWorker } from '../../services/learning/client';
-import type { LocalModel, ModelSnapshot } from '../../services/learning/types';
+import type { HoldoutSet, LocalModel, ModelSnapshot } from '../../services/learning/types';
 
-interface Props { records: ReviewRecord[]; model: LocalModel | null; history: ModelSnapshot[]; stale: boolean; audioIds: Set<string>; reanalyzing: boolean; onReanalyze: () => Promise<void>; onModel: (model: LocalModel) => Promise<void>; onLibrary: () => void }
+interface Props { records: ReviewRecord[]; model: LocalModel | null; history: ModelSnapshot[]; stale: boolean; audioIds: Set<string>; reanalyzing: boolean; onReanalyze: () => Promise<void>; holdout: HoldoutSet | null; onFreeze: () => Promise<void>; onUnfreeze: () => Promise<void>; onModel: (model: LocalModel) => Promise<void>; onLibrary: () => void }
 const pct = (n: number | null | undefined) => n === null || n === undefined ? '—' : `${Math.round(n * 100)} %`;
 const fmtWhen = (iso: string) => new Date(iso).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
-export default function LearningView({ records, model, history, stale, audioIds, reanalyzing, onReanalyze, onModel, onLibrary }: Props) {
+export default function LearningView({ records, model, history, stale, audioIds, reanalyzing, onReanalyze, holdout, onFreeze, onUnfreeze, onModel, onLibrary }: Props) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const abort = useRef<AbortController | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
   // Los registros de versiones anteriores puntúan, pero no entrenan hasta reanalizarse.
-  const { current: trainable, stale: outdated } = splitByFeatureVersion(records);
+  const { current, stale: outdated } = splitByFeatureVersion(records);
+  // El conjunto congelado queda fuera del entrenamiento; solo se mide sobre las muestras que siguen existiendo en la versión actual.
+  const held = new Set(holdout?.ids ?? []);
+  const trainable = current.filter(r => !held.has(r.id));
+  const holdoutRecords = current.filter(r => held.has(r.id));
+  const eligibleGroups = new Set(current.filter(r => r.origin === 'real' && r.sourceGroup.trim()).map(r => r.sourceGroup.trim().toLowerCase())).size;
   const reanalyzable = outdated.filter(r => audioIds.has(r.id)).length;
   const readiness = trainingReadiness(trainable), ready = readiness.filter(r => r.eligible);
   const real = trainable.filter(r => r.origin === 'real');
   const start = async () => {
     setBusy(true); setError(''); abort.current = new AbortController();
-    try { await onModel(await trainInWorker(trainable, abort.current.signal)); }
+    try {
+      const trained = await trainInWorker(trainable, abort.current.signal);
+      if (holdoutRecords.length) trained.holdout = evaluateHoldout(trained, holdoutRecords);
+      await onModel(trained);
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'No se pudo entrenar.'); }
     finally { setBusy(false); abort.current = null; }
   };
   return <div className="learning-view"><div className="page-title"><span className="eyebrow">APRENDIZAJE SUPERVISADO / EN TU EQUIPO</span><h2>Tu colección enseña.<br /><em>Los resultados responden.</em></h2><p>Entrena con ejemplos que hayas verificado. Comprueba el resultado con grabaciones que el modelo no ha visto.</p></div>
     <div className="learning-intro"><div className="learning-status"><div className="learning-symbol"><Layers3 size={35} strokeWidth={1.2} /></div><span className="eyebrow">MODELO LOCAL</span><h3>{model ? 'Un primer modelo, medible.' : 'Primero los datos.'}</h3><p>{model ? `Entrenado el ${new Date(model.trainedAt).toLocaleDateString('es')} con ${model.trainingSampleIds.length} muestras.` : 'Todavía no hay un modelo entrenado. Eso es lo correcto: sin ejemplos reales no hay precisión que prometer.'}</p><div className="learning-counters"><span><b>{real.length}</b>Muestras reales</span><span><b>{new Set(real.map(r => r.sourceGroup.trim().toLowerCase()).filter(Boolean)).size}</b>Orígenes</span><span><b>{ready.length} / 5</b>Herramientas listas</span></div><button className="button primary" disabled={!ready.length || busy} onClick={start}><Play size={15} />{busy ? 'Entrenando y validando…' : model ? 'Volver a entrenar' : 'Entrenar modelo local'}</button>{busy && <button className="text-button" onClick={() => abort.current?.abort()}><Square size={12} /> Cancelar</button>}{error && <p role="alert" className="error-text">{error}</p>}{stale && <p className="notice">La colección ha cambiado desde el entrenamiento, o el modelo se entrenó con una versión anterior de las características. Reentrena antes de usar sus sugerencias.</p>}{outdated.length > 0 && <div className="outdated-note" data-testid="outdated-note"><p><b>{outdated.length}</b> muestra(s) en una versión anterior: puntúan, pero no entrenan.{reanalyzable ? ` ${reanalyzable} tienen audio guardado y se pueden reanalizar aquí.` : ' Ninguna tiene audio guardado: vuelve a subir los originales y se reconocerán por su huella.'}</p><button type="button" className="button secondary" disabled={!reanalyzable || reanalyzing || busy} onClick={() => void onReanalyze()}><RefreshCw size={14} /> Reanalizar las que tienen audio</button></div>}</div>
     <div className="collection-guide"><span className="eyebrow">UN CORPUS QUE SIRVE</span><h3>Cómo empezar bien.</h3>{[{ n: '01', title: 'Conserva el original', text: 'Graba fuentes distintas: voz, percusión, ambientes e instrumentos. Guarda la fuente sin procesar.' }, { n: '02', title: 'Cambia una cosa cada vez', text: 'Exporta versiones con y sin cada efecto. Anota ajustes y momentos; incluye procesos sutiles y evidentes.' }, { n: '03', title: 'Etiqueta lo que sabes', text: 'Marca presencia o ausencia y asigna el mismo grupo al original y sus versiones. Lo incierto queda pendiente.' }, { n: '04', title: 'Amplía y contrasta', text: 'Incluye nuevas grabaciones y mezclas reales. El mínimo habilita una prueba; no certifica robustez.' }].map(s => <div className="guide-step" key={s.n}><span>{s.n}</span><div><h4>{s.title}</h4><p>{s.text}</p></div></div>)}<button className="text-button" onClick={onLibrary}>Ir a etiquetar muestras <ArrowRight size={14} /></button></div></div>
+    <section className="panel holdout-panel" data-testid="holdout-panel"><div className="panel-heading"><div><span className="eyebrow">CONJUNTO DE EVALUACIÓN CONGELADO</span><h3>El mismo examen para todos los modelos.</h3></div><Lock size={22} /></div>
+      {holdout
+        ? <><p className="muted text-small"><b>{holdout.ids.length}</b> muestras de <b>{holdout.groups.length}</b> orígenes, apartadas el {fmtWhen(holdout.chosenAt)}. Quedan fuera del entrenamiento y cada modelo se mide sobre ellas: ese es el número que permite comparar dos entrenamientos.{holdoutRecords.length < holdout.ids.length ? ` Ahora mismo hay ${holdoutRecords.length} disponibles (el resto se borró o necesita reanálisis).` : ''}</p>
+          <div className="toolbar"><button type="button" className="button secondary" disabled={busy} onClick={() => void onFreeze()}>Rehacer</button><button type="button" className="text-button" disabled={busy} onClick={() => void onUnfreeze()}>Quitar</button><small className="muted text-small">Rehacerlo o quitarlo rompe la comparabilidad con los entrenamientos anteriores.</small></div></>
+        : <><p className="muted text-small">Sin un conjunto fijo, cada entrenamiento se evalúa sobre una colección distinta y no se puede saber si el modelo mejoró o el examen se hizo más fácil. Se apartan orígenes enteros (una quinta parte), nunca muestras sueltas.</p>
+          <div className="toolbar"><button type="button" className="button secondary" disabled={busy || eligibleGroups < 8} onClick={() => void onFreeze()}><Lock size={14} /> Congelar conjunto de evaluación</button>{eligibleGroups < 8 && <small className="muted text-small">Hacen falta al menos 8 orígenes reales (hay {eligibleGroups}).</small>}</div></>}
+    </section>
     <section className="panel"><div className="panel-heading"><div><span className="eyebrow">COBERTURA DEL CONJUNTO</span><h3>Una herramienta, dos clases.</h3></div><ShieldCheck size={22} /></div><p className="muted text-small">Mínimo inicial por herramienta: 12 muestras reales y 6 orígenes. Presencia y ausencia deben aparecer en al menos 3 orígenes cada una. Los ejemplos sintéticos quedan excluidos.</p><div className="readiness-table">{readiness.map(row => <div className="readiness-row" key={row.effect}><div><b>{EFFECTS.find(e => e.id === row.effect)!.label}</b><span>{row.distinctGroups} orígenes · {row.labeledRealSamples} muestras</span></div><div className="class-count"><span>Presente</span><b>{row.positiveSamples}</b><div><i style={{ width: `${Math.min(1, row.positiveGroups / 3) * 100}%` }} /></div></div><div className="class-count"><span>Ausente</span><b>{row.negativeSamples}</b><div><i style={{ width: `${Math.min(1, row.negativeGroups / 3) * 100}%` }} /></div></div><span className={`pill ${row.eligible ? 'positive' : ''}`}>{row.eligible ? 'Lista para probar' : 'Faltan ejemplos'}</span></div>)}</div></section>
-    {model && <section className="panel"><div className="panel-heading"><div><span className="eyebrow">VALIDACIÓN POR ORIGEN · 3 PARTICIONES</span><h3>Lo que dicen los datos retenidos.</h3></div><FlaskConical size={22} /></div><div className="library-table-wrap"><table className="library-table"><thead><tr><th>Herramienta</th><th>Precisión positiva</th><th>Sensibilidad</th><th>Exactitud equilibrada</th><th>VP / VN / FP / FN</th></tr></thead><tbody>{Object.values(model.effects).map(e => <tr key={e!.effect}><td>{EFFECTS.find(f => f.id === e!.effect)?.label}</td><td>{pct(e!.validation.precision)}</td><td>{pct(e!.validation.recall)}</td><td>{pct(e!.validation.balancedAccuracy)}</td><td className="mono">{Object.values(e!.validation.confusion).join(' / ')}</td></tr>)}</tbody></table></div><p className="library-footnote">Cada grabación de origen se evalúa con un modelo que no entrenó con ninguna de sus versiones. VP/VN: aciertos; FP/FN: errores. Estos resultados describen esta colección, no todos los audios posibles.</p></section>}
+    {model && <section className="panel"><div className="panel-heading"><div><span className="eyebrow">VALIDACIÓN POR ORIGEN · 3 PARTICIONES</span><h3>Lo que dicen los datos retenidos.</h3></div><FlaskConical size={22} /></div><div className="library-table-wrap"><table className="library-table"><thead><tr><th>Herramienta</th><th>Precisión positiva</th><th>Sensibilidad</th><th>Exactitud equilibrada</th><th>Congelado</th><th>VP / VN / FP / FN</th></tr></thead><tbody>{Object.values(model.effects).map(e => <tr key={e!.effect}><td>{EFFECTS.find(f => f.id === e!.effect)?.label}</td><td>{pct(e!.validation.precision)}</td><td>{pct(e!.validation.recall)}</td><td>{pct(e!.validation.balancedAccuracy)}</td><td className="mono">{model.holdout?.[e!.effect] ? `${pct(model.holdout[e!.effect]!.balancedAccuracy)} (${model.holdout[e!.effect]!.evaluatedSamples})` : '—'}</td><td className="mono">{Object.values(e!.validation.confusion).join(' / ')}</td></tr>)}</tbody></table></div><p className="library-footnote">Cada grabación de origen se evalúa con un modelo que no entrenó con ninguna de sus versiones. VP/VN: aciertos; FP/FN: errores. «Congelado» es la exactitud equilibrada sobre el conjunto apartado (entre paréntesis, cuántas muestras): es la cifra comparable entre entrenamientos. Estos resultados describen esta colección, no todos los audios posibles.</p></section>}
     {history.length > 1 && <section className="panel"><div className="panel-heading"><div><span className="eyebrow">HISTORIAL DE ENTRENAMIENTOS · {history.length}</span><h3>Si mejora, se nota aquí.</h3></div><TrendingUp size={22} /></div>
       <p className="muted text-small">Exactitud equilibrada de cada herramienta en cada entrenamiento, con la diferencia respecto al anterior. Describe cómo se comporta el modelo sobre esta colección; una colección que crece cambia también la dificultad de la prueba.</p>
       <div className="library-table-wrap"><table className="library-table"><thead><tr><th>Entrenamiento</th><th>Conjunto</th>{EFFECTS.map(e => <th key={e.id}>{e.label}</th>)}</tr></thead>
@@ -35,13 +51,17 @@ export default function LearningView({ records, model, history, stale, audioIds,
           <td className="mono">{fmtWhen(snapshot.trainedAt)}</td>
           <td className="mono">{snapshot.sampleCount} muestras · {snapshot.groupCount} orígenes</td>
           {EFFECTS.map(e => {
-            const current = snapshot.effects[e.id]?.balancedAccuracy ?? null;
+            const value = snapshot.effects[e.id]?.balancedAccuracy ?? null;
             const before = previous?.effects[e.id]?.balancedAccuracy ?? null;
-            const delta = current !== null && before !== null ? current - before : null;
-            return <td key={e.id} className="mono">{pct(current)}{delta !== null && Math.abs(delta) >= 0.005 && <small className={delta > 0 ? 'trend up' : 'trend down'}>{delta > 0 ? '▲' : '▼'} {Math.abs(Math.round(delta * 100))}</small>}</td>;
+            const delta = value !== null && before !== null ? value - before : null;
+            const heldValue = snapshot.holdout?.[e.id]?.balancedAccuracy ?? null;
+            const heldBefore = previous?.holdout?.[e.id]?.balancedAccuracy ?? null;
+            const heldDelta = heldValue !== null && heldBefore !== null ? heldValue - heldBefore : null;
+            const trend = (d: number | null) => d !== null && Math.abs(d) >= 0.005 ? <small className={d > 0 ? 'trend up' : 'trend down'}>{d > 0 ? '▲' : '▼'} {Math.abs(Math.round(d * 100))}</small> : null;
+            return <td key={e.id} className="mono">{pct(value)}{trend(delta)}{heldValue !== null && <span className="held-value">congelado {pct(heldValue)}{trend(heldDelta)}</span>}</td>;
           })}
         </tr>; })}</tbody></table></div>
-      <p className="library-footnote">Una herramienta sin cifra no llegaba al mínimo de muestras y orígenes en ese entrenamiento. Para comparar de verdad dos modelos hace falta un conjunto de prueba fijo; esta tabla sirve para ver la tendencia, no para certificar precisión.</p></section>}
+      <p className="library-footnote">Una herramienta sin cifra no llegaba al mínimo de muestras y orígenes en ese entrenamiento. La cifra principal es la validación por particiones sobre la colección de ese momento; la marcada «congelado» se midió sobre el conjunto apartado y es la única comparable entre entrenamientos.</p></section>}
     <div className="method-note"><FlaskConical size={20} /><p><b>Un modelo base, con límites explícitos.</b> Bosques aleatorios sobre espectro y descriptores globales. No demuestran cómo se produjo un audio ni localizan por sí solos cada efecto. Las sugerencias requieren revisión; para procesos sutiles, conserva y compara la fuente original.</p></div>
   </div>;
 }

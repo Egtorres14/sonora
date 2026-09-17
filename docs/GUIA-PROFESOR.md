@@ -97,6 +97,10 @@ Usa la caja **Probar un nombre** antes de guardar: te dice si un nombre puntuar�
 - **Modelo local** muestra la cobertura de tu colección y permite reentrenar con tus propias muestras verificadas. Requisitos mínimos por herramienta: 12 muestras reales, 6 orígenes y ambas clases en al menos 3 orígenes.
 - La validación separa por grabación de origen: ninguna variante se evalúa con un modelo que la haya visto. Las cifras describen el corpus, no tus trabajos reales; para eso, añade y etiqueta grabaciones de tu clase.
 
+### Conjunto de evaluación congelado
+
+El historial compara cada entrenamiento con el anterior, pero si la colección creció, el examen también cambió: una cifra mejor puede significar un examen más fácil. En **Modelo local**, **Congelar conjunto de evaluación** aparta una quinta parte de los orígenes (grabaciones enteras, nunca muestras sueltas; hacen falta al menos 8 orígenes reales). Esas muestras quedan fuera del entrenamiento y cada modelo se mide sobre ellas: la columna «Congelado» de la validación y la marca «congelado» del historial son la única comparación honesta entre dos modelos. Rehacer o quitar el conjunto rompe esa comparabilidad, y la aplicación lo avisa.
+
 ### Muestras de una versión anterior
 
 Cuando la aplicación mejora la forma de medir, las muestras medidas antes siguen valiendo para la nota, pero no entran en el entrenamiento hasta medirse de nuevo. En **Modelo local** verás cuántas hay y un botón para reanalizar las que tienen audio guardado; también basta con abrir una de ellas. Las importadas sin audio se quedan como están: vuelve a subir el original y se reconocerá por su huella.

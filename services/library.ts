@@ -2,7 +2,7 @@ import { openDB, type DBSchema } from 'idb';
 import { calculateReview, EFFECTS, type ReviewRecord } from './review';
 import type { RubricConfig } from './scoring/rubric';
 import { summarizeModel } from './learning/model';
-import type { LocalModel, ModelSnapshot } from './learning/types';
+import type { HoldoutSet, LocalModel, ModelSnapshot } from './learning/types';
 import { DatasetSchema } from './library-schema';
 
 interface LibraryDB extends DBSchema {
@@ -11,10 +11,12 @@ interface LibraryDB extends DBSchema {
   models: { key: string; value: LocalModel };
   /** Un resumen por entrenamiento, para poder comparar y ver si el modelo mejora. */
   modelHistory: { key: string; value: ModelSnapshot };
+  /** Conjunto de evaluación congelado (una sola entrada, clave 'current'). */
+  holdout: { key: string; value: HoldoutSet };
 }
 
 /** Versión del esquema de IndexedDB. Cada incremento añade su paso en `upgrade`, sin borrar nada. */
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export const createLibrary = (name = 'sonora-library-v1') => {
   // Open lazily: importing the app does not fail in environments without IndexedDB.
@@ -23,6 +25,7 @@ export const createLibrary = (name = 'sonora-library-v1') => {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) { db.createObjectStore('reviews', { keyPath: 'id' }); db.createObjectStore('audio'); db.createObjectStore('models'); }
       if (oldVersion < 2) db.createObjectStore('modelHistory', { keyPath: 'trainedAt' });
+      if (oldVersion < 3) db.createObjectStore('holdout');
     },
     blocking() { void connection?.then(db => db.close()); connection = undefined; },
   });
@@ -64,6 +67,9 @@ export const createLibrary = (name = 'sonora-library-v1') => {
       await tx.objectStore('modelHistory').put(summarizeModel(model));
       await tx.done;
     },
+    async holdout() { return (await connect()).get('holdout', 'current'); },
+    async saveHoldout(set: HoldoutSet) { await (await connect()).put('holdout', set, 'current'); },
+    async clearHoldout() { await (await connect()).delete('holdout', 'current'); },
     /** Entrenamientos anteriores, del más antiguo al más reciente. */
     async modelHistory() { return (await (await connect()).getAll('modelHistory')).sort((a, b) => a.trainedAt.localeCompare(b.trainedAt)); },
   };

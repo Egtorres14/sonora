@@ -7,8 +7,8 @@ import { fetchCorpusCollection, fetchCorpusModel } from '../../services/corpus';
 import { createReview, updateReview, type ReviewRecord } from '../../services/review';
 import { createSaveQueue, type SaveQueue } from '../../services/save-queue';
 import { isQuotaError, readStorageState, requestPersistentStorage, storageWarning } from '../../services/storage';
-import { isModelStale, splitByFeatureVersion } from '../../services/learning/model';
-import type { LocalModel, ModelSnapshot } from '../../services/learning/types';
+import { chooseHoldout, isModelStale, splitByFeatureVersion } from '../../services/learning/model';
+import type { HoldoutSet, LocalModel, ModelSnapshot } from '../../services/learning/types';
 import { loadSession, saveSession, clearSession, studentKey, type Session } from '../../services/session';
 import { loadRubric, saveRubric, resetRubric } from '../../services/rubric-store';
 import { loadEngineSettings, saveEngineSettings, type EngineSettings } from '../../services/engines';
@@ -33,6 +33,7 @@ export default function useWorkspace() {
   const [model, setModel] = useState<LocalModel | null>(null);
   const [modelHistory, setModelHistory] = useState<ModelSnapshot[]>([]);
   const [audioIds, setAudioIds] = useState<Set<string>>(new Set());
+  const [holdout, setHoldout] = useState<HoldoutSet | null>(null);
   const [view, setView] = useState<WorkspaceView>('lab');
   const [selectedId, setSelectedId] = useState('');
   const [analyzed, setAnalyzed] = useState<AnalyzedAudio | null>(null), [blob, setBlob] = useState<Blob | null>(null);
@@ -57,7 +58,7 @@ export default function useWorkspace() {
   const maxManual = rubric.totalPoints + rubric.bonus.points;
   const replaceRecords = (next: ReviewRecord[]) => { recordsRef.current = next; setAllRecords(next); };
   const refresh = async () => { const [items, ids] = await Promise.all([library.list(), library.audioIds()]); replaceRecords(items); setAudioIds(new Set(ids)); };
-  useEffect(() => { let live = true; Promise.all([library.list(), library.model(), library.modelHistory(), library.audioIds()]).then(([items, savedModel, history, ids]) => { if (live) { replaceRecords(items); setModel(savedModel ?? null); setModelHistory(history); setAudioIds(new Set(ids)); } }).catch(() => { if (live) setError('No se puede abrir el almacenamiento local. Permite el almacenamiento de este sitio para guardar tu colección.'); }); return () => { live = false; abort.current?.abort(); void saveQueue.flush(); }; }, [saveQueue]);
+  useEffect(() => { let live = true; Promise.all([library.list(), library.model(), library.modelHistory(), library.audioIds(), library.holdout()]).then(([items, savedModel, history, ids, held]) => { if (live) { replaceRecords(items); setModel(savedModel ?? null); setModelHistory(history); setAudioIds(new Set(ids)); setHoldout(held ?? null); } }).catch(() => { if (live) setError('No se puede abrir el almacenamiento local. Permite el almacenamiento de este sitio para guardar tu colección.'); }); return () => { live = false; abort.current?.abort(); void saveQueue.flush(); }; }, [saveQueue]);
   // El audio vive en IndexedDB: sin persistencia concedida el navegador puede desalojarlo sin avisar.
   useEffect(() => { let live = true; void requestPersistentStorage().then(() => readStorageState()).then(state => { const warning = storageWarning(state); if (live && warning) setNotice(warning); }); return () => { live = false; }; }, []);
   useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (saving > 0) { void saveQueue.flush(); event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [saving, saveQueue]);
@@ -233,6 +234,13 @@ export default function useWorkspace() {
     }
     catch { setError('No se pudo cargar la referencia.'); }
   };
+  /** Aparta orígenes enteros para evaluar; rehacerlo rompe la comparabilidad con los entrenamientos anteriores. */
+  const freezeHoldout = async () => {
+    if (!isTeacher) return;
+    try { const next = chooseHoldout(recordsRef.current); await library.saveHoldout(next); setHoldout(next); setNotice(`Conjunto de evaluación apartado: ${next.ids.length} muestras de ${next.groups.length} orígenes. Quedan fuera del entrenamiento y cada modelo se medirá sobre ellas.`); }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo apartar el conjunto de evaluación.'); }
+  };
+  const unfreezeHoldout = async () => { if (!isTeacher) return; await library.clearHoldout(); setHoldout(null); setNotice('Conjunto de evaluación retirado: sus muestras vuelven a poder entrenar y las mediciones anteriores dejan de ser comparables.'); };
   const saveModel = async (next: LocalModel) => { if (!isTeacher) return; await library.saveModel(next); setModel(next); setModelHistory(await library.modelHistory()); setNotice('Modelo y resultados de validación guardados en este navegador.'); };
   /**
    * Vuelve a la zona de carga del laboratorio sin salir de él. No se pierde nada: el registro ya
@@ -241,5 +249,5 @@ export default function useWorkspace() {
    */
   const clearSelection = () => { abort.current?.abort(); resetSelection(); setView('lab'); };
   const modelStale = useMemo(() => isModelStale(model, allRecords), [model, allRecords]);
-  return { session, enter, leave, isTeacher, rubric, setRubric, restoreRubric, engines, setEngines, updateEngines, records, allRecords, model, modelHistory, modelStale, audioIds, reanalyze, view, setView, selected: records.find(r => r.id === selectedId), analyzed, audioUrl, referenceUrl, referenceId, reference, busy, stage, error, notice, saving, setError, setNotice, change, select, files, demo, remove, importFile, importCorpus, saveModel, clearSelection, cancel: () => abort.current?.abort() };
+  return { session, enter, leave, isTeacher, rubric, setRubric, restoreRubric, engines, setEngines, updateEngines, records, allRecords, model, modelHistory, modelStale, audioIds, reanalyze, holdout, freezeHoldout, unfreezeHoldout, view, setView, selected: records.find(r => r.id === selectedId), analyzed, audioUrl, referenceUrl, referenceId, reference, busy, stage, error, notice, saving, setError, setNotice, change, select, files, demo, remove, importFile, importCorpus, saveModel, clearSelection, cancel: () => abort.current?.abort() };
 }
