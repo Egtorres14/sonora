@@ -312,3 +312,8 @@ button.tl-dot, button.tl-range { cursor: pointer; }
 /* --- Conjunto de evaluación congelado --- */
 .holdout-panel .toolbar { align-items: center; flex-wrap: wrap; gap: 10px 16px; margin-top: 12px; }
 .held-value { display: block; margin-top: 3px; font-size: 10px; color: var(--accent); }
+
+/* --- Capturas de la guía --- */
+.guide-figure { margin: 14px 0 6px; }
+.guide-figure img { display: block; width: 100%; max-width: 860px; height: auto; border: 1px solid var(--line); border-radius: 6px; background: #121b12; }
+.guide-figure a:focus-visible img { outline: 2px solid var(--accent); outline-offset: 2px; }
