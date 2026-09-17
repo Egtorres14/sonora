@@ -455,3 +455,67 @@ test('abrir un registro antiguo con audio lo reanaliza y lo pone al día', async
   await page.getByRole('button', { name: /Biblioteca/ }).first().click();
   await expect(page.locator('tbody tr')).not.toContainText('reanálisis pendiente');
 });
+
+test('la nota publicada no se mueve aunque cambie la rúbrica, y el profesor puede volver a publicar', async ({ page }) => {
+  // La estudiante entrega con sinopsis
+  await page.getByRole('button', { name: /Salir/ }).click();
+  await page.getByLabel('Nombre y apellidos').fill('Marta Vidal');
+  await page.getByRole('button', { name: 'Entrar como estudiante' }).click();
+  await page.getByLabel('Subir archivos de audio').setInputFiles(audio());
+  await expect(page.locator('.file-heading')).toContainText('Tu entrega');
+  await page.getByLabel('Sinopsis de la pieza').fill('Paisaje sonoro construido a partir de una campana.');
+  await expect(page.locator('.workspace-topline')).not.toContainText('Guardando cambios');
+
+  // El profesor califica todo y publica: 30 / 30
+  const asTeacherOpen = async () => {
+    await page.getByRole('button', { name: /Salir/ }).click();
+    await page.getByLabel('PIN', { exact: true }).fill('Felipebolano2026');
+    await page.getByRole('button', { name: 'Entrar como profesor' }).click();
+    await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+    await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  };
+  await asTeacherOpen();
+  for (const tool of ['Pitch shift', 'Time stretch', 'Reversa', 'Filtros', 'Loops']) await page.getByRole('group', { name: `Revisión de ${tool}` }).getByRole('button', { name: 'Presente' }).click();
+  await page.getByLabel('Sobreprocesamiento').selectOption('none');
+  await page.getByLabel('Efectos extra').selectOption('absent');
+  await expect(page.getByTestId('final-score')).toContainText('30');
+  await page.getByRole('button', { name: 'Publicar al estudiante' }).click();
+  await expect(page.getByRole('button', { name: 'Retirar publicación' })).toBeVisible();
+  await expect(page.getByTestId('grade-drift')).toHaveCount(0);
+  await expect(page.locator('.workspace-topline')).not.toContainText('Guardando cambios');
+
+  // El profesor cambia la rúbrica: el nombre de archivo deja de puntuar
+  await page.getByRole('button', { name: /Rúbrica/ }).click();
+  await page.getByLabel('Puntos por nombre de archivo').fill('0');
+  await page.getByRole('button', { name: 'Guardar rúbrica' }).click();
+  await expect(page.locator('.notice-banner')).toContainText('Rúbrica guardada');
+
+  // Ve la deriva: publicada 30, ahora calcularía 27,5
+  await page.getByRole('button', { name: /Biblioteca/ }).first().click();
+  await expect(page.locator('tbody tr')).toContainText('difiere de lo publicado');
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await expect(page.getByTestId('grade-drift')).toContainText('Publicada 30');
+  await expect(page.getByTestId('grade-drift')).toContainText('ahora calcularía 27,5');
+
+  // La estudiante sigue viendo la nota publicada
+  const asStudentOpen = async () => {
+    await page.getByRole('button', { name: /Salir/ }).click();
+    await page.getByLabel('Nombre y apellidos').fill('Marta Vidal');
+    await page.getByRole('button', { name: 'Entrar como estudiante' }).click();
+    await page.getByRole('button', { name: /Mis entregas/ }).first().click();
+  };
+  await asStudentOpen();
+  await expect(page.locator('tbody tr')).toContainText('30 / 30');
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await expect(page.getByTestId('student-score')).toContainText('30');
+
+  // El profesor vuelve a publicar y la estudiante ve la nueva nota
+  await asTeacherOpen();
+  await page.getByRole('button', { name: 'Volver a publicar' }).click();
+  await expect(page.getByTestId('grade-drift')).toHaveCount(0);
+  await expect(page.locator('.workspace-topline')).not.toContainText('Guardando cambios');
+  await asStudentOpen();
+  await expect(page.locator('tbody tr')).toContainText('27.5 / 27.5');
+  await page.getByRole('button', { name: /^campana_validacion/ }).click();
+  await expect(page.getByTestId('student-score')).toContainText('27,5');
+});

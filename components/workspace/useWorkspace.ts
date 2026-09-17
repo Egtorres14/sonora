@@ -113,8 +113,8 @@ export default function useWorkspace() {
         const result = await analyzeFile(new File([audio], record.name, { type: audio.type }), setStage, controller.signal);
         if (!controller.signal.aborted) {
           setBlob(playbackBlob(audio, result)); setAnalyzed(result);
-          // Una nota publicada no debe moverse bajo el estudiante; el profesor pone el registro al día al abrirlo o por lotes.
-          if (isTeacher || !record.published) refreshFeatures(record.id, result.features);
+          // La nota publicada está congelada en `publishedGrade`, así que reanalizar no la mueve: vale para cualquier rol.
+          refreshFeatures(record.id, result.features);
         }
       }
     } catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'No se pudo abrir la muestra.'); }

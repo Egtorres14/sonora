@@ -303,3 +303,8 @@ button.tl-dot, button.tl-range { cursor: pointer; }
 .outdated-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding: 12px 14px; border: 1px solid #655139; border-radius: 6px; background: #332d23; font-size: 11px; line-height: 1.7; color: #d1b896; }
 .outdated-note p { flex: 1 1 260px; }
 .outdated-tag { margin-left: 8px; color: #e0a63b; }
+
+/* --- Nota congelada al publicar --- */
+.grade-drift { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 18px; }
+.grade-drift .text-button { margin-left: auto; }
+.drift-tag { margin-left: 8px; color: #e5b399; }

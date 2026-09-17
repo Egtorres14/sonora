@@ -97,7 +97,7 @@ export const exportCsv = (records: ReviewRecord[], rubric?: RubricConfig) => {
   };
   const rows = records.map(r => {
     const score = calculateReview(r, rubric);
-    return [r.name, r.student?.name ?? '', r.student?.submittedAt ?? '', r.published ? 'sí' : 'no', r.sourceGroup, r.origin, r.features.format.duration, ...EFFECTS.map(e => r.labels[e.id]), score.final, score.manual ? 'manual' : score.final === null ? 'pendiente' : 'calculada', score.formal.total, score.technical.total, r.notes];
+    return [r.name, r.student?.name ?? '', r.student?.submittedAt ?? '', r.published ? 'sí' : 'no', r.sourceGroup, r.origin, r.features.format.duration, ...EFFECTS.map(e => r.labels[e.id]), score.final, r.publishedGrade?.final ?? '', score.manual ? 'manual' : score.final === null ? 'pendiente' : 'calculada', score.formal.total, score.technical.total, r.notes];
   });
-  return '\uFEFF' + [['Archivo', 'Estudiante', 'Entregado', 'Publicada', 'Grupo de origen', 'Procedencia', 'Segundos', 'Pitch shift', 'Time stretch', 'Reversa', 'Filtros', 'Loops', 'Nota final', 'Tipo de nota', 'Formal', 'Técnica', 'Notas'], ...rows].map(row => row.map(quote).join(';')).join('\r\n');
+  return '\uFEFF' + [['Archivo', 'Estudiante', 'Entregado', 'Publicada', 'Grupo de origen', 'Procedencia', 'Segundos', 'Pitch shift', 'Time stretch', 'Reversa', 'Filtros', 'Loops', 'Nota final', 'Nota publicada', 'Tipo de nota', 'Formal', 'Técnica', 'Notas'], ...rows].map(row => row.map(quote).join(';')).join('\r\n');
 };

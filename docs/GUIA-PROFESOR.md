@@ -65,6 +65,10 @@ Ninguna sugerencia cambia etiquetas ni notas: solo señala dónde mirar.
 2. Cuando la revisión esté completa, pulsa **Publicar al estudiante**. En **Mis entregas** verá la nota, el desglose y tu comentario.
 3. Puedes ajustar la nota a mano; queda marcada como ajustada.
 
+### La nota publicada se congela
+
+Al pulsar **Publicar al estudiante** se guarda la nota y su desglose tal como están en ese momento, y eso es lo que ve el estudiante desde entonces. Si después cambias la rúbrica, retocas una etiqueta o el audio se vuelve a medir, tu cálculo cambia pero la nota publicada no: verás un aviso «Publicada X · ahora calcularía Y» con **Volver a publicar**, y en la biblioteca la marca «difiere de lo publicado». Retirar la publicación borra la instantánea. El CSV lleva las dos columnas, «Nota final» (cálculo vivo) y «Nota publicada».
+
 ## 7. Ajustar la rúbrica
 
 En **Rúbrica** cambias los puntos de cada bloque (formal, técnico, creativo), las penalizaciones, las herramientas obligatorias y la bonificación. Se guarda en el navegador y todas las notas se recalculan al instante. **Restablecer** vuelve a la original.
