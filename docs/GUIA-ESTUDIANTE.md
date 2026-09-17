@@ -6,6 +6,8 @@ Sonora analiza tu proyecto de audio en el navegador y se lo muestra a tu profeso
 
 Escribe tu nombre completo tal y como quieres que lo vea tu profesor. Con ese nombre se identifican tus entregas: usa siempre el mismo, con la misma ortografía.
 
+![Entrada: (1) tu nombre completo, (2) Entrar como estudiante](../public/guia/estudiante-01-entrada.png)
+
 ## 2. Prepara el archivo
 
 - Exporta el proyecto en **WAV, AIFF o FLAC**. No se aceptan MP3 ni otros formatos comprimidos.
@@ -17,17 +19,25 @@ Escribe tu nombre completo tal y como quieres que lo vea tu profesor. Con ese no
   - Evita silencios largos no intencionados.
   - Respeta la frecuencia de muestreo y la duración que pida tu profesor.
 
+![Antes de subir: (1) el formato de nombre que pide tu profesor, con un ejemplo con tu nombre, (2) la zona de carga](../public/guia/estudiante-02-preparar.png)
+
 ## 3. Entrega
 
 En **Entregar** arrastra el archivo o pulsa para elegirlo. Se analiza en tu navegador y se guarda en ese equipo; tu profesor lo verá cuando lo abra ahí. Si vuelves a subir el mismo archivo no se duplica.
+
+![Entrega: (1) registrada a tu nombre con fecha, (2) mediciones hechas en tu navegador](../public/guia/estudiante-03-entregar.png)
 
 ## 4. Escribe la sinopsis
 
 Cuenta qué querías conseguir y qué procesos usaste: pitch shift, time stretch, reversa, filtros, loops y cualquier otro efecto. Indica dónde ocurren («la reversa está en 0:40–0:48»). La sinopsis puntúa y ayuda al profesor a encontrar cada proceso.
 
+![Sinopsis: (1) qué hiciste y dónde, con tiempos](../public/guia/estudiante-04-sinopsis.png)
+
 ## 5. Mira las mediciones
 
 Verás nivel (LUFS), pico real, saturación, clics y silencios con el momento exacto en la forma de onda. Si algo sale mal, corrige el proyecto y vuelve a entregarlo antes de que lo revisen.
+
+![Mediciones: (1) la onda con marcas, (2) la lista de evidencias](../public/guia/estudiante-05-mediciones.png)
 
 ## 6. Lectura orientativa (si está activada)
 
@@ -36,6 +46,10 @@ Si tu profesor lo ha permitido, puedes pedir una vez por entrega una lectura de 
 ## 7. Consulta tu calificación
 
 En **Mis entregas** aparecerá **Publicada** cuando el profesor termine. Ahí verás la nota, el desglose por criterios y su feedback.
+
+![Calificación: (1) Calificado en Mis entregas, (2) nota, desglose y comentarios](../public/guia/estudiante-07-entregas.png)
+
+![Calificación: (1) Calificado en Mis entregas, (2) nota, desglose y comentarios](../public/guia/estudiante-07-calificacion.png)
 
 La nota que ves es la que tu profesor publicó, y no cambia aunque después ajuste la rúbrica o revise otra vez el archivo. Si vuelve a publicar, verás la nueva nota.
 

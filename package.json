@@ -10,6 +10,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
+    "guia:capturas": "playwright test -c playwright.guia.config.ts",
     "corpus:fetch": "tsx scripts/corpus/fetch-sources.ts",
     "corpus:build": "tsx scripts/corpus/build-corpus.ts --sources corpus/sources --out public/corpus --wav none --mp3 --per-tool 2",
     "corpus:model": "tsx scripts/contrib/train-community.ts public/corpus/coleccion.json corpus/contributions/*.json --out public/corpus/modelo.json",

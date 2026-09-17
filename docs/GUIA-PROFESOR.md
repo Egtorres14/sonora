@@ -10,6 +10,8 @@ La misma guía está dentro de la app, en **Guía de uso** (menú lateral) y en 
 2. Elige **Profesor** e introduce el PIN. La sesión queda guardada en ese navegador hasta que pulses **Salir**.
 3. En un equipo compartido con estudiantes, cierra sesión al terminar: el PIN separa los espacios, pero no protege frente a quien borre los datos del navegador.
 
+![Entrada: (1) el PIN acordado, (2) Entrar como profesor](../public/guia/profesor-01-entrada.png)
+
 ## 2. Recibir y subir audios
 
 - **Laboratorio**: arrastra archivos WAV, AIFF o FLAC (hasta 200 MB cada uno). Se analizan en un *worker* del navegador y se guardan en IndexedDB.
@@ -17,9 +19,15 @@ La misma guía está dentro de la app, en **Guía de uso** (menú lateral) y en 
 - Un mismo archivo se reconoce por su huella SHA-256: si un estudiante lo vuelve a subir no se duplica.
 - Las demos sintéticas (campana limpia, con clics, en reversa) sirven para explorar la interfaz; quedan excluidas del entrenamiento.
 
+![Laboratorio: (1) zona de carga, (2) demos sintéticas](../public/guia/profesor-02-laboratorio.png)
+
 ## 3. Leer las mediciones
 
 Cada archivo muestra:
+
+![Mediciones: (1) medidores, (2) forma de onda con marcas; y la lista de evidencias con momento y fuente](../public/guia/profesor-03-mediciones.png)
+
+![Mediciones: (1) medidores, (2) forma de onda con marcas; y la lista de evidencias con momento y fuente](../public/guia/profesor-03b-evidencias.png)
 
 | Medición | Qué es | Cómo puntúa |
 |---|---|---|
@@ -37,6 +45,8 @@ Las mediciones son reproducibles: el mismo archivo da siempre el mismo resultado
 
 En **Criterio del profesor** marca para cada herramienta (pitch shift, time stretch, reversa, filtros, loops) si está **presente**, **ausente** o **pendiente**.
 
+![Revisión: (1) presente, ausente o pendiente por herramienta, (2) la nota calculada con la rúbrica](../public/guia/profesor-04-revisar.png)
+
 - Escribe la evidencia con tiempos, por ejemplo `0:12–0:18 sube una octava`. Se dibuja en la línea de tiempo y se cita en el feedback.
 - Si tienes la fuente original en la biblioteca, elígela como referencia en el panel de contexto para comparar A/B.
 - Mientras haya decisiones pendientes la nota queda **En revisión** y se muestra el rango posible.
@@ -50,6 +60,8 @@ En **Motores de IA** decides quién opina y cuánto cuesta:
 ### Marcar dónde ocurre cada herramienta
 
 Sobre la forma de onda, con «Marcar» activo, arrastra para señalar el tramo de una herramienta. Sin ratón: «Marcar desde el tiempo actual» crea una marca de un segundo desde el cursor y los tiempos se ajustan con los campos numéricos de la lista; ese camino funciona también en un registro importado que no trae audio.
+
+![Marcado: (1) zoom, (2) herramienta y modo Marcar, (3) lista de marcas editable](../public/guia/profesor-05-marcar.png)
 
 Cada marca lleva su comentario y **encabeza la lista de evidencias**: si una herramienta tiene marcas, los tiempos salen de ellas y el campo de texto deja de parsearse. La primera marca de una herramienta pendiente la propone como «presente» y te avisa; borrarla **no** cambia la etiqueta, porque la decisión es tuya. El estudiante no ve ninguna marca hasta que publicas la revisión.
 
@@ -65,9 +77,13 @@ Ninguna sugerencia cambia etiquetas ni notas: solo señala dónde mirar.
 2. Cuando la revisión esté completa, pulsa **Publicar al estudiante**. En **Mis entregas** verá la nota, el desglose y tu comentario.
 3. Puedes ajustar la nota a mano; queda marcada como ajustada.
 
+![Publicar: (1) lo que ve el estudiante desde que publicas, (2) el feedback editable](../public/guia/profesor-07b-nota.png)
+
 ### La nota publicada se congela
 
 Al pulsar **Publicar al estudiante** se guarda la nota y su desglose tal como están en ese momento, y eso es lo que ve el estudiante desde entonces. Si después cambias la rúbrica, retocas una etiqueta o el audio se vuelve a medir, tu cálculo cambia pero la nota publicada no: verás un aviso «Publicada X · ahora calcularía Y» con **Volver a publicar**, y en la biblioteca la marca «difiere de lo publicado». Retirar la publicación borra la instantánea. El CSV lleva las dos columnas, «Nota final» (cálculo vivo) y «Nota publicada».
+
+![Deriva: (1) publicada frente a lo que se calcularía ahora, con Volver a publicar; (2) retirar la publicación](../public/guia/profesor-07-publicar.png)
 
 ## 7. Ajustar la rúbrica
 
@@ -76,6 +92,8 @@ En **Rúbrica** cambias los puntos de cada bloque (formal, técnico, creativo), 
 ### Formato del nombre de archivo
 
 Escribe el formato tal como lo pondrías en el enunciado. Campos disponibles:
+
+![Rúbrica: (1) formato exigido, (2) probar un nombre, (3) guardar](../public/guia/profesor-08-rubrica.png)
 
 | Campo | Acepta |
 |---|---|
@@ -97,6 +115,10 @@ Usa la caja **Probar un nombre** antes de guardar: te dice si un nombre puntuar�
 - **Modelo local** muestra la cobertura de tu colección y permite reentrenar con tus propias muestras verificadas. Requisitos mínimos por herramienta: 12 muestras reales, 6 orígenes y ambas clases en al menos 3 orígenes.
 - La validación separa por grabación de origen: ninguna variante se evalúa con un modelo que la haya visto. Las cifras describen el corpus, no tus trabajos reales; para eso, añade y etiqueta grabaciones de tu clase.
 
+![Modelo local: (1) estado de la colección, (2) conjunto de evaluación congelado, (3) cobertura por herramienta; y la validación con la columna Congelado](../public/guia/profesor-09-modelo.png)
+
+![Modelo local: (1) estado de la colección, (2) conjunto de evaluación congelado, (3) cobertura por herramienta; y la validación con la columna Congelado](../public/guia/profesor-09b-validacion.png)
+
 ### Conjunto de evaluación congelado
 
 El historial compara cada entrenamiento con el anterior, pero si la colección creció, el examen también cambió: una cifra mejor puede significar un examen más fácil. En **Modelo local**, **Congelar conjunto de evaluación** aparta una quinta parte de los orígenes (grabaciones enteras, nunca muestras sueltas; hacen falta al menos 8 orígenes reales). Esas muestras quedan fuera del entrenamiento y cada modelo se mide sobre ellas: la columna «Congelado» de la validación y la marca «congelado» del historial son la única comparación honesta entre dos modelos. Rehacer o quitar el conjunto rompe esa comparabilidad, y la aplicación lo avisa.
@@ -110,6 +132,8 @@ Cuando la aplicación mejora la forma de medir, las muestras medidas antes sigue
 - **CSV** desde Biblioteca: una fila por archivo con estudiante, fecha, etiquetas, nota y tipo de nota. Se abre en Excel o Sheets.
 - **JSON**: la colección completa (sin audio) para llevarla a otro equipo o importarla en otro navegador.
 - **Contribuir al corpus**: abre un issue con la plantilla «Contribuir muestras» y adjunta el JSON. Un flujo automático valida el esquema, deduplica y abre un PR; al fusionarlo se reentrena el modelo comunitario.
+
+![Biblioteca: (1) buscar, filtrar, importar y exportar, (2) estado de cada muestra](../public/guia/profesor-10-biblioteca.png)
 
 ## Qué mide y qué no
 
