@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatasetSchema } from '../../services/library-schema';
-import { trainingReadiness, trainLocalModel } from '../../services/learning/model';
+import { splitByFeatureVersion, trainingReadiness, trainLocalModel } from '../../services/learning/model';
 import type { TrainingSample, EffectId } from '../../services/learning/types';
 
 const argv = process.argv.slice(2);
@@ -34,9 +34,11 @@ for (const file of files) {
   perFile.push(`- \`${file}\`: ${added} registros nuevos.`);
 }
 
-const readiness = trainingReadiness(samples);
+// Los registros de versiones anteriores puntúan en la aplicación, pero no entrenan.
+const { current: trainable, stale: outdated } = splitByFeatureVersion(samples);
+const readiness = trainingReadiness(trainable);
 const t0 = Date.now();
-const model = trainLocalModel(samples);
+const model = trainLocalModel(trainable);
 const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
 
 const pct = (x: number | null) => (x === null ? 'n/a' : `${(x * 100).toFixed(0)} %`);
@@ -47,7 +49,7 @@ const rows = (Object.keys(model.effects) as EffectId[]).map((effect) => {
 const notReady = readiness.filter((r) => !r.eligible).map((r) => `- ${r.effect}: ${r.reason} (+${r.positiveSamples}/−${r.negativeSamples}, grupos ${r.distinctGroups})`);
 const md = `## Modelo comunitario · ${new Date().toISOString().slice(0, 10)}
 
-Colecciones: ${files.length} · registros únicos: ${samples.length} · reales: ${samples.filter((s) => s.origin === 'real').length} · grupos de origen: ${new Set(samples.map((s) => s.sourceGroup.trim().toLowerCase())).size} · entrenamiento ${elapsed} s · descriptores \`${model.featureVersion}\`
+Colecciones: ${files.length} · registros únicos: ${samples.length} · en versión anterior (excluidos): ${outdated.length} · reales: ${samples.filter((s) => s.origin === 'real').length} · grupos de origen: ${new Set(samples.map((s) => s.sourceGroup.trim().toLowerCase())).size} · entrenamiento ${elapsed} s · descriptores \`${model.featureVersion}\`
 
 ${perFile.join('\n')}
 

@@ -1,6 +1,13 @@
 /**
  * Extracción de características objetivas a partir de audio decodificado.
  * Puro (sin DOM): se ejecuta en un Web Worker o en Node (tests).
+ *
+ * Al cambiar FEATURES_VERSION (la regla completa está en ./version.ts):
+ *  - un campo nuevo → sube la MENOR y entra como `.optional()` en services/library-schema.ts;
+ *  - un campo que desaparece o cambia de tipo → sube la MAYOR;
+ *  - mismos campos con otro algoritmo → sube el PARCHE;
+ *  - en el mismo cambio: `npm run corpus:build` y commitear public/corpus (tests/corpus-version.test.ts falla si no).
+ * Los registros antiguos siguen puntuando; solo entrenan los que están en la versión exacta.
  */
 import {
   measureLoudness, measureTruePeak, detectClipping, detectClicks, measureDcOffset,

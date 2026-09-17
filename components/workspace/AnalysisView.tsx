@@ -4,6 +4,7 @@ import type { AnalyzedAudio } from '../../services/audio';
 import { renderSpectrogramPng } from '../../services/audio/spectrogram';
 import { EFFECTS, calculateReview, type ReviewRecord } from '../../services/review';
 import { downloadFile, jsonSafe } from '../../services/library';
+import { isCurrentFeatures } from '../../services/audio/version';
 import { buildEvidence, fmtRange, SOURCE_COLOR } from '../../services/evidence';
 import type { LocalModel } from '../../services/learning/types';
 import type { RubricConfig } from '../../services/scoring/rubric';
@@ -68,6 +69,7 @@ export default function AnalysisView({ record, analyzed, audioUrl, records, mode
           onRemove={id => applyMark(removeMark(record, id))} />
       </>}
       {record.features.analysis.warnings.length > 0 && <details className="measurement-warnings"><summary>Notas sobre estas mediciones ({record.features.analysis.warnings.length})</summary>{record.features.analysis.warnings.map((w, i) => <p key={i}>{w}</p>)}</details>}
+      {!isCurrentFeatures(record.features) && !audioUrl && <p className="notice" data-testid="outdated-record">Esta muestra se midió con una versión anterior ({record.features.version}). Su nota sigue siendo válida, pero no entra en el entrenamiento. Vuelve a subir el archivo original: se reconocerá por su huella y se medirá de nuevo.</p>}
     </section>
 
     {teacher && <button type="button" className="button primary mobile-cta" onClick={() => reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><ClipboardCheck size={16} /> Revisar y calificar</button>}

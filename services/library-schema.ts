@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { FEATURES_VERSION } from './audio/features';
+import { acceptsFeatureVersion } from './audio/version';
 
 const n = z.number().finite();
 const nonnegative = n.nonnegative();
@@ -9,6 +9,9 @@ const ratio = n.min(0).max(1);
 const db = z.union([n, z.literal('Infinity'), z.literal('-Infinity'), z.null()]).transform(v => v === 'Infinity' ? Infinity : v === '-Infinity' || v === null ? -Infinity : v);
 const text = z.string().max(20_000);
 const label = z.enum(['unknown', 'present', 'absent']);
+// Misma mayor y menor ≤ la del código (services/audio/version.ts). Un literal destruía toda
+// colección exportada en cuanto cambiaba la versión.
+const featureVersion = z.string().refine(acceptsFeatureVersion, 'Versión de características no compatible con esta aplicación');
 const labels = z.object({ pitch_shift: label, time_stretch: label, reversa: label, filtros: label, loops: label });
 const evidence = z.object({ pitch_shift: text, time_stretch: text, reversa: text, filtros: text, loops: text });
 const marks = z.array(z.object({
@@ -21,7 +24,7 @@ const marks = z.array(z.object({
 }).refine(m => m.end > m.start, 'El final de una marca va después de su inicio')).max(200);
 
 const features = z.object({
-  version: z.literal(FEATURES_VERSION),
+  version: featureVersion,
   file: z.object({ name: text, sizeBytes: count, container: text, decoder: text }),
   format: z.object({ sampleRate: n.int().min(8000).max(384000), bitDepth: count.max(64), sampleFormat: z.enum(['int', 'float', 'unknown']), channels: count.min(1).max(32), duration: n.positive().max(86400), formatTag: z.union([n, text]).optional() }),
   levels: z.object({ samplePeakDbfs: db, truePeakDbtp: db, integratedLufs: db, shortTermMaxLufs: db, momentaryMaxLufs: db, loudnessRangeLu: nonnegative, crestFactorDb: db, dcOffset: z.array(n).max(32), dcOffsetWarning: z.boolean() }),
@@ -32,7 +35,7 @@ const features = z.object({
   spectrum: z.object({ centroidHz: nonnegative, rolloff95Hz: nonnegative, bandwidthHz: nonnegative, energyAbove16kDb: db, energyAbove20kDb: db, flatness: ratio, ltas: z.array(z.object({ hz: nonnegative, db })).length(48) }),
   temporal: z.object({ onsetRate: nonnegative, envelopeAsymmetry: n.min(-1).max(1), reverseLikeFraction: ratio, periodicityStrength: ratio, periodicityLagSec: nonnegative, repeatFraction: ratio, repeatLagSec: nonnegative, fluxCrest: nonnegative }),
   heuristics: z.object({ reverseEnvelopeEvents: count, reverseEnvelopeTimes: z.array(nonnegative).max(1000), contentAbove16k: z.boolean() }),
-  analysis: z.object({ version: z.literal(FEATURES_VERSION), elapsedMs: nonnegative, warnings: z.array(text).max(100) }),
+  analysis: z.object({ version: featureVersion, elapsedMs: nonnegative, warnings: z.array(text).max(100) }),
 });
 
 export const ReviewSchema = z.object({

@@ -3,6 +3,7 @@ import { Sparkles } from 'lucide-react';
 import type { AnalyzedAudio } from '../../services/audio';
 import type { LocalModel } from '../../services/learning/types';
 import { predictLocalModel } from '../../services/learning/model';
+import { isCurrentFeatures } from '../../services/audio/version';
 import { EFFECTS, type ReviewRecord } from '../../services/review';
 import { engineCost, loadKey, type EngineSettings } from '../../services/engines';
 import { findModel } from '../../services/llm/catalog';
@@ -51,7 +52,7 @@ export default function ModelAdvice({ record, analyzed, model, engines, teacher,
   const ai = stored;
 
   return <div className="model-advice">
-    {teacher && <div className="local-advice"><h4>Clasificador local</h4>{!model ? <p>No hay un modelo disponible. Reúne muestras etiquetadas en la biblioteca y entrénalo desde «Modelo local».</p> : seen ? <p>Esta muestra o su grupo ya formaron parte del entrenamiento. Una predicción aquí no sería evidencia independiente.</p> : <div className="suggestion-list">{prediction.map(p => <div key={p.effect}><b>{EFFECTS.find(e => e.id === p.effect)?.label}</b><span>{p.predicted === null ? 'Se abstiene' : p.predicted ? 'Sugiere presencia' : 'Sugiere ausencia'}</span><p>{p.voteShare === null ? '' : `${Math.round(p.voteShare * 100)} % de votos por presencia. `}{p.explanation}</p></div>)}</div>}</div>}
+    {teacher && <div className="local-advice"><h4>Clasificador local</h4>{!model ? <p>No hay un modelo disponible. Reúne muestras etiquetadas en la biblioteca y entrénalo desde «Modelo local».</p> : !isCurrentFeatures(record.features) ? <p>Esta muestra se midió con una versión anterior de las características y el clasificador no puede leerla. Ábrela con su audio o vuelve a subir el original para reanalizarla.</p> : seen ? <p>Esta muestra o su grupo ya formaron parte del entrenamiento. Una predicción aquí no sería evidencia independiente.</p> : <div className="suggestion-list">{prediction.map(p => <div key={p.effect}><b>{EFFECTS.find(e => e.id === p.effect)?.label}</b><span>{p.predicted === null ? 'Se abstiene' : p.predicted ? 'Sugiere presencia' : 'Sugiere ausencia'}</span><p>{p.voteShare === null ? '' : `${Math.round(p.voteShare * 100)} % de votos por presencia. `}{p.explanation}</p></div>)}</div>}</div>}
     {external ? <div className="external-advice">
       <div className="engine-summary-row"><span className="eyebrow"><Sparkles size={14} /> {modelInfo?.label ?? engines.models[external]}</span><span className="mono">{runs} ejecución{runs > 1 ? 'es' : ''} · {modelInfo?.free ? 'gratis' : `≈ ${cost.toFixed(3)} $`}{teacher && reinforce ? ' · refuerzo' : ''}</span>{teacher && onEngines && <button className="text-button" onClick={onEngines}>Cambiar motor</button>}</div>
       {teacher && <p className="notice">Se envían el audio preparado o las imágenes, las métricas, el nombre del archivo, la sinopsis y el contexto al proveedor{reinforce ? ', además de las sugerencias del clasificador local y tus decisiones actuales para que las contraste' : ''}. La clave es la guardada en «Motores de IA».</p>}
